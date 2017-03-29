@@ -1,84 +1,205 @@
-//use std::rc::Rc;
-//use std::cell::RefCell;
+extern crate alga;
+use alga::general::Real;
 
-//use na::{Isometry3, Translation3, UnitQuaternion, Point2, Vector3, Point3};
+extern crate nalgebra as na;
+use na::{Isometry3, Vector3, Unit, UnitQuaternion, Translation3};
 
-// node -> link
-// edge -> joint
-
-// based on the code below
-// https://github.com/nikomatsakis/simple-graph/blob/master/src/lib.rs
-
-pub struct Frame {
-    name: String,
-    links: Vec<LinkData>,
-    joints: Vec<JointData>,
+#[derive(Copy)]
+pub enum JointType<T: Real> {
+    /// Fixed joint. angle is not used.
+    Fixed,
+    /// Rotational joint around axis. angle [rad].
+    Rotational{axis: Unit<Vector3<T>>},
+    /// Linear joint. angle is length
+    Linear{axis: Unit<Vector3<T>>},
 }
 
-pub type LinkIndex = usize;
-
-pub struct LinkData {
-    name: String,
-    first_child_joint: Option<JointIndex>,
-}
-
-pub type JointIndex = usize;
-
-pub struct JointData {
-    name: String,
-    child_link: LinkIndex,
-    sister_joint: Option<JointIndex>,
-}
-
-impl Frame {
-    pub fn new(name: &str) -> Frame {
-        Frame { name: name.to_string(),
-                joints: Vec::new(),
-                links: Vec::new(),
-        }
+impl<T> Clone for JointType<T> where T: Real {
+    fn clone(&self) -> JointType<T> {
+        *self
     }
-    pub fn add_link(&mut self, name: &str) -> LinkIndex {
-        let index = self.links.len();
-        self.links.push(LinkData { name: name.to_string(),
-                                   first_child_joint: None });
-        index
-    }
+}
 
-    pub fn add_joint(&mut self, name: &str,
-                     parent: LinkIndex, child: LinkIndex) {
-        let joint_index = self.joints.len();
-        let parent_link_data = &mut self.links[parent];
-        self.joints.push(JointData {
+pub struct RobotFrame<T: Real> {
+    pub name: String,
+    pub frames: Vec<LinkedFrame<T>>,
+    pub transform: Isometry3<T>,
+}
+
+impl<T> RobotFrame<T> where T: Real {
+    pub fn new(name: &str, frames: Vec<LinkedFrame<T>>) -> RobotFrame<T> {
+        RobotFrame {
             name: name.to_string(),
-            child_link: child,
-            sister_joint: parent_link_data.first_child_joint,
-        });
-        parent_link_data.first_child_joint = Some(joint_index)
-    }
-
-    pub fn successors(&self, from: LinkIndex) -> Successors {
-        let first_child_joint = self.links[from].first_child_joint;
-        Successors { graph: self, current_joint_index: first_child_joint }
-    }
-}
-
-pub struct Successors<'graph> {
-    graph: &'graph Frame,
-    current_joint_index: Option<JointIndex>,
-}
-
-impl<'graph> Iterator for Successors<'graph> {
-    type Item = LinkIndex;
-
-    fn next(&mut self) -> Option<LinkIndex> {
-        match self.current_joint_index {
-            None => None,
-            Some(joint_num) => {
-                let joint = &self.graph.joints[joint_num];
-                self.current_joint_index = joint.sister_joint;
-                Some(joint.child_link)
-            }
+            frames: frames,
+            transform: Isometry3::identity(),
         }
+    }
+    pub fn calc_transforms(&self) -> Vec<Vec<Isometry3<T>>> {
+        self.frames.iter().map(
+            |ref lf|
+            lf.calc_transforms().iter().map(|&tf| self.transform * tf).collect()).collect()
+    }
+}
+
+/// Set of Joint and Link
+///
+/// imagine below structure
+/// [transform] -> linked_joints([[joint] -> [Link]] -> [[joint] -> [Link]] -> ...)
+pub struct LinkedFrame<T: Real> {
+    pub name: String,
+    pub linked_joints: Vec<LinkedJoint<T>>,
+    pub transform: Isometry3<T>,
+}
+
+impl<T> LinkedFrame<T> where T: Real {
+    pub fn new(name: &str) -> LinkedFrame<T> {
+        LinkedFrame {
+            name: name.to_string(),
+            linked_joints: Vec::new(),
+            transform: Isometry3::identity(),
+        }
+    }
+    pub fn calc_transforms(&self) -> Vec<Isometry3<T>> {
+        let mut vec = Vec::new();
+        vec.push(self.transform);
+        for lj in &self.linked_joints {
+            let next = vec.last().unwrap() * lj.calc_transform();
+            vec.push(next);
+        }
+        vec
+    }
+    pub fn set_joint_angles(&mut self, angles: &Vec<T>) {
+        for (i, ang) in angles.iter().enumerate()  {
+            self.linked_joints[i].set_joint_angle(*ang);
+        }
+    }
+}
+
+/// Joint and Link
+///
+/// [[joint] -> [Link]]
+pub struct LinkedJoint<T: Real> {
+    pub name: String,
+    pub joint: Joint<T>,
+    pub transform: Isometry3<T>,
+}
+
+impl<T> LinkedJoint<T> where T: Real {
+    /// Construct a LinkedJoint from name and joint instance
+    ///
+    /// You can use LinkedJointBuilder<T> if you want.
+    pub fn new(name: &str, joint: Joint<T>) -> LinkedJoint<T> {
+        LinkedJoint {
+            name: name.to_string(),
+            joint: joint,
+            transform: Isometry3::identity(),
+        }
+    }
+    pub fn get_joint_name(&self) -> &str {
+        &self.joint.name
+    }
+    pub fn calc_transform(&self) -> Isometry3<T> {
+        self.joint.calc_transform() * self.transform
+    }
+    pub fn set_joint_angle(&mut self, angle: T) {
+        self.joint.set_angle(angle)
+    }
+}
+
+pub struct Range<T: Real> {
+    pub min: T,
+    pub max: T,
+}
+
+/// Joint with type
+pub struct Joint<T: Real> {
+    pub name: String,
+    pub joint_type: JointType<T>,
+    pub angle: T,
+    pub limits: Option<Range<T>>,
+}
+
+impl<T> Joint<T> where T: Real {
+    pub fn new(name: &str, joint_type: JointType<T>) -> Joint<T> {
+        Joint { name: name.to_string(),
+                joint_type: joint_type,
+                angle: T::zero(),
+                limits: None,
+        }
+    }
+    pub fn set_limits(&mut self, limits: Option<Range<T>>) {
+        self.limits = limits;
+    }
+    pub fn set_angle(&mut self, angle: T) {
+        self.angle = angle;
+    }
+    pub fn get_angle(&self) -> T {
+        self.angle
+    }
+    pub fn calc_transform(&self) -> Isometry3<T> {
+        match self.joint_type {
+            JointType::Fixed => Isometry3::identity(),
+            JointType::Rotational{axis} =>
+                Isometry3::from_parts(
+                    Translation3::new(T::zero(), T::zero(), T::zero()),
+                    UnitQuaternion::from_axis_angle(&axis, self.angle)),
+            JointType::Linear{axis} =>
+                Isometry3::from_parts(
+                    Translation3::from_vector(&axis.unwrap() * self.angle),
+                    UnitQuaternion::identity()),
+        }
+    }
+}
+
+
+/// Build a LinkedJoint<T>
+///
+/// # Examples
+///
+/// let l0 = LinkedJointBuilder::new()
+///     .name("link1")
+///     .translation(Translation3::new(0.0, 0.1, 0.0))
+///     .joint("link_pitch", JointType::Rotational{axis: Vector3::y_axis()})
+///     .finalize();
+///
+
+pub struct LinkedJointBuilder<T: Real> {
+    name: String,
+    joint: Joint<T>,
+    transform: Isometry3<T>,
+}
+
+impl<T> LinkedJointBuilder<T> where T: Real {
+    pub fn new() -> LinkedJointBuilder<T> {
+        LinkedJointBuilder {
+            name: "".to_string(),
+            joint: Joint::new("", JointType::Fixed),
+            transform: Isometry3::identity(),
+        }
+    }
+    pub fn name(mut self, name: &str) -> LinkedJointBuilder<T> {
+        self.name = name.to_string();
+        self
+    }
+    pub fn joint(mut self, name: &str, joint_type: JointType<T>) -> LinkedJointBuilder<T> {
+        self.joint = Joint::new(name, joint_type);
+        self
+    }
+    pub fn transform(mut self, transform: Isometry3<T>) -> LinkedJointBuilder<T> {
+        self.transform = transform;
+        self
+    }
+    pub fn translation(mut self, translation: Translation3<T>) -> LinkedJointBuilder<T> {
+        self.transform.translation = translation;
+        self
+    }
+    pub fn rotation(mut self, rotation: UnitQuaternion<T>) -> LinkedJointBuilder<T> {
+        self.transform.rotation = rotation;
+        self
+    }
+    pub fn finalize(self) -> LinkedJoint<T> {
+        LinkedJoint {name: self.name, joint: self.joint,
+                     transform: self.transform}
     }
 }
 
@@ -87,26 +208,25 @@ mod test {
     #[test]
     fn it_works() {
         use super::*;
-        let mut robot = Frame::new("robot");
-        let root = robot.add_link("root_link");
-        let larm1 = robot.add_link("larm1");
-        let larm2 = robot.add_link("larm2");
-        let larm3 = robot.add_link("larm3");
-        let rarm1 = robot.add_link("rarm1");
-        let rarm2 = robot.add_link("rarm2");
-        let rarm3 = robot.add_link("rarm3");
-        robot.add_joint("l_shoulder", root, larm1);
-        robot.add_joint("l_elbow", larm1, larm2);
-        robot.add_joint("l_wrist", larm2, larm3);
-        robot.add_joint("r_shoulder", root, rarm1);
-        robot.add_joint("r_elbow", rarm1, rarm2);
-        robot.add_joint("r_wrist", rarm2, rarm3);
-        let successors_all: Vec<LinkIndex> = robot.successors(root).collect();
-        assert_eq!(&successors_all[..], &[rarm1, larm1]);
-        for ind in robot.successors(root) {
-            println!("{}", robot.links[ind].name);
-        }
-        let successors_rarm: Vec<LinkIndex> = robot.successors(rarm1).collect();
-        assert_eq!(&successors_rarm[..], &[rarm2]);
+        let mut j1 = Joint::new("j1",
+                                JointType::Rotational{axis: Vector3::x_axis()});
+        let j2 = Joint::new("j2",
+                                JointType::Rotational{axis: Vector3::x_axis()});
+        assert_eq!(j1.get_angle(), 0.0);
+        j1.set_angle(1.0);
+        assert_eq!(j1.get_angle(), 1.0);
+        let linked_joint1 = LinkedJoint::new("link1", j1,
+                                             Isometry3::from_parts(
+                                                 Translation3::new(1.0, 0.0, 0.0),
+                                                 UnitQuaternion::identity()));
+        let linked_joint2 = LinkedJoint::new("link2", j2,
+                                             Isometry3::from_parts(
+                                                 Translation3::new(1.0, 0.0, 0.0),
+                                                 UnitQuaternion::identity()));
+        let mut lf = LinkedFrame::new("lf1");
+        lf.linked_joints = vec![linked_joint1, linked_joint2];
+        println!("{:?}",lf.calc_transforms());
+        lf.set_joint_angles(vec!(1.57, 1.0));
+        println!("{:?}",lf.calc_transforms());
     }
 }
