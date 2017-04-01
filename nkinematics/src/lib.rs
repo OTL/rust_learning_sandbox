@@ -1,8 +1,36 @@
 extern crate alga;
-use alga::general::Real;
-
 extern crate nalgebra as na;
-use na::{Isometry3, Vector3, Unit, UnitQuaternion, Translation3};
+
+use alga::general::Real;
+use na::{Isometry3, Vector3, Vector6, Matrix6, Unit, UnitQuaternion, Translation3};
+
+fn to_euler_angles<T: Real>(q: &UnitQuaternion<T>) -> Vector3<T> {
+    let x = q[0];
+    let y = q[1];
+    let z = q[2];
+    let w = q[3];
+    let ysqr = y * y;
+    let _1: T = T::one();
+    let _2: T = na::convert(1.0);
+
+    // roll
+    let t0 = _2 * (w * x + y * z);
+    let t1 = _1 - _2 * (x * x + ysqr);
+    let roll = t0.atan2(t1);
+
+    // pitch
+    let t2 = _2 * (w * y - z * x);
+    let t2 = if t2 > _1 { _1 } else { t2 };
+    let t2 = if t2 < -_1 { -_1 } else { t2 };
+    let pitch = t2.asin();
+
+    // yaw
+    let t3 = _2 * (w * z + x * y);
+    let t4 = _1 - _2 * (ysqr + z * z);
+    let yaw = t3.atan2(t4);
+
+    Vector3::new(roll, pitch, yaw)
+}
 
 #[derive(Copy)]
 pub enum JointType<T: Real> {
@@ -44,6 +72,7 @@ impl<T> RobotFrame<T> where T: Real {
 /// Set of Joint and Link
 ///
 /// imagine below structure
+///
 /// [transform] -> linked_joints([[joint] -> [Link]] -> [[joint] -> [Link]] -> ...)
 pub struct LinkedFrame<T: Real> {
     pub name: String,
@@ -68,10 +97,78 @@ impl<T> LinkedFrame<T> where T: Real {
         }
         vec
     }
+
+    pub fn calc_end_transform(&self) -> Isometry3<T> {
+        self.calc_transforms().last().unwrap().clone()
+    }
+
     pub fn set_joint_angles(&mut self, angles: &Vec<T>) {
         for (i, ang) in angles.iter().enumerate()  {
             self.linked_joints[i].set_joint_angle(*ang);
         }
+    }
+    pub fn get_joint_angles(&self) -> Vec<T> {
+        self.linked_joints.iter().map(|ref linked_joint| linked_joint.get_joint_angle()).collect()
+    }
+    pub fn solve_inverse_kinematics_one_loop(&mut self, target_pose: &Isometry3<T>,
+                                             move_velocity: T) -> T {
+        fn calc_vector6_pose<T: Real>(pose: &Isometry3<T>) -> Vector6<T> {
+            let rpy = to_euler_angles(&pose.rotation);
+            Vector6::new(
+                pose.translation.vector[0],
+                pose.translation.vector[1],
+                pose.translation.vector[2],
+                rpy[0], rpy[1], rpy[2])
+        }
+        let orig_angles = self.get_joint_angles();
+        let orig_angles_vec = Vector6::new(orig_angles[0], orig_angles[1], orig_angles[2],
+                                           orig_angles[3], orig_angles[4], orig_angles[5]);
+        let orig_pose6 = calc_vector6_pose(&self.calc_end_transform());
+//        println!("orig_pose6 = {}", orig_pose6);
+        let target_pose6 = calc_vector6_pose(&target_pose);
+//        println!("target_pose6 = {}", target_pose6);
+        let mut yacobi_vec = Vec::new();
+        let da = T::from_f64(0.01).unwrap();
+        for i in 0..6 {
+            let mut small_diff_angles_i = orig_angles.clone();
+            small_diff_angles_i[i] += da;
+            self.set_joint_angles(&small_diff_angles_i);
+            let small_diff_pose6 = calc_vector6_pose(&self.calc_end_transform());
+            let jacobi = small_diff_pose6 - orig_pose6;
+            yacobi_vec.push(jacobi);
+        }
+        let jacobi = Matrix6::from_columns(&[
+            yacobi_vec[0],
+            yacobi_vec[1],
+            yacobi_vec[2],
+            yacobi_vec[3],
+            yacobi_vec[4],
+            yacobi_vec[5]]);
+        let j_inv = jacobi.try_inverse().unwrap();
+        let new_angles_diff = j_inv * (target_pose6 - orig_pose6) * move_velocity;
+        let new_angles = orig_angles_vec + new_angles_diff;
+        self.set_joint_angles(&vec![new_angles[0], new_angles[1], new_angles[2], new_angles[3], new_angles[4],
+                                   new_angles[5]]);
+        let new_pose6 = calc_vector6_pose(&self.calc_end_transform());
+        (target_pose6 - new_pose6).norm()
+    }
+
+    pub fn solve_inverse_kinematics(&mut self, target_pose: Isometry3<T>) -> bool {
+        // currently
+        if self.linked_joints.len() != 6 {
+            println!("support only 6 DoF now");
+            return false;
+        }
+        let allowable_target_distance = na::convert(0.01);
+        for i in 0..100 {
+            let target_distance = self.solve_inverse_kinematics_one_loop(&target_pose,
+                                                                         na::convert(0.001));
+            if target_distance < allowable_target_distance {
+                return true;
+            }
+//            println!("[{}]dist = {}", i, target_distance);
+        }
+        false
     }
 }
 
@@ -103,6 +200,9 @@ impl<T> LinkedJoint<T> where T: Real {
     }
     pub fn set_joint_angle(&mut self, angle: T) {
         self.joint.set_angle(angle)
+    }
+    pub fn get_joint_angle(&self) -> T {
+        self.joint.get_angle()
     }
 }
 
@@ -156,12 +256,13 @@ impl<T> Joint<T> where T: Real {
 ///
 /// # Examples
 ///
+/// ```
 /// let l0 = LinkedJointBuilder::new()
 ///     .name("link1")
 ///     .translation(Translation3::new(0.0, 0.1, 0.0))
 ///     .joint("link_pitch", JointType::Rotational{axis: Vector3::y_axis()})
 ///     .finalize();
-///
+/// ```
 
 pub struct LinkedJointBuilder<T: Real> {
     name: String,
@@ -206,27 +307,13 @@ impl<T> LinkedJointBuilder<T> where T: Real {
 
 mod test {
     #[test]
-    fn it_works() {
+    fn test_to_euler_angles() {
         use super::*;
-        let mut j1 = Joint::new("j1",
-                                JointType::Rotational{axis: Vector3::x_axis()});
-        let j2 = Joint::new("j2",
-                                JointType::Rotational{axis: Vector3::x_axis()});
-        assert_eq!(j1.get_angle(), 0.0);
-        j1.set_angle(1.0);
-        assert_eq!(j1.get_angle(), 1.0);
-        let linked_joint1 = LinkedJoint::new("link1", j1,
-                                             Isometry3::from_parts(
-                                                 Translation3::new(1.0, 0.0, 0.0),
-                                                 UnitQuaternion::identity()));
-        let linked_joint2 = LinkedJoint::new("link2", j2,
-                                             Isometry3::from_parts(
-                                                 Translation3::new(1.0, 0.0, 0.0),
-                                                 UnitQuaternion::identity()));
-        let mut lf = LinkedFrame::new("lf1");
-        lf.linked_joints = vec![linked_joint1, linked_joint2];
-        println!("{:?}",lf.calc_transforms());
-        lf.set_joint_angles(vec!(1.57, 1.0));
-        println!("{:?}",lf.calc_transforms());
+        let q = na::UnitQuaternion::from_euler_angles(0.1, 0.2, 0.3);
+        let rpy = to_euler_angles(&q);
+//        println!("{:}", rpy);
+        assert!((rpy[0] - 0.1).abs() < 0.0001);
+        assert!((rpy[1] - 0.2).abs() < 0.0001);
+        assert!((rpy[2] - 0.3).abs() < 0.0001);
     }
 }
