@@ -1,0 +1,19 @@
+[package]
+name = "nkinematics-examples"
+version = "0.1.0"
+authors = ["Takashi Ogura <t.ogura@gmail.com>"]
+
+[dependencies]
+nalgebra = "0.11.0"
+alga = "0.5.1"
+nkinematics = { path = "../", version = "0.1.0" }
+kiss3d = "0.8.0"
+glfw = "0.8.0" # required by kiss3d
+
+[[bin]]
+name = "robot"
+path = "src/robot.rs"
+
+[[bin]]
+name = "interactive_ik"
+path = "src/interactive_ik.rs"

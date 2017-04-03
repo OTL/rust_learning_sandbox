@@ -11,24 +11,18 @@ extern crate nalgebra as na;
 use na::{Isometry3, Vector3, UnitQuaternion, Translation3};
 
 fn create_linked_frame(name: &str) -> LinkedFrame<f32> {
-    let j1 = Joint::new("lj1",
-                            JointType::Rotational{axis: Vector3::x_axis()});
-    let j2 = Joint::new("lj2",
-                        JointType::Linear{axis: Vector3::y_axis()});
-    let j3 = Joint::new("lj3",
-                        JointType::Rotational{axis: Vector3::x_axis()});
+    let j1 = Joint::new("lj1", JointType::Rotational { axis: Vector3::x_axis() });
+    let j2 = Joint::new("lj2", JointType::Linear { axis: Vector3::y_axis() });
+    let j3 = Joint::new("lj3", JointType::Rotational { axis: Vector3::x_axis() });
     let mut linked_joint1 = LinkedJoint::new("llink1", j1);
-    linked_joint1.transform = Isometry3::from_parts(
-        Translation3::new(0.0, 0.2, 0.0),
-        UnitQuaternion::identity());
+    linked_joint1.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
+                                                    UnitQuaternion::identity());
     let mut linked_joint2 = LinkedJoint::new("link2", j2);
-    linked_joint2.transform = Isometry3::from_parts(
-        Translation3::new(0.0, 0.2, 0.0),
-        UnitQuaternion::identity());
+    linked_joint2.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
+                                                    UnitQuaternion::identity());
     let mut linked_joint3 = LinkedJoint::new("link2", j3);
-    linked_joint3.transform = Isometry3::from_parts(
-        Translation3::new(0.0, 0.2, 0.0),
-        UnitQuaternion::identity());
+    linked_joint3.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
+                                                    UnitQuaternion::identity());
     let mut lf1 = LinkedFrame::new(name);
     lf1.linked_joints = vec![linked_joint1, linked_joint2, linked_joint3];
     lf1
@@ -48,22 +42,18 @@ fn create_cubes(window: &mut Window) -> Vec<SceneNode> {
 
 fn main() {
     let mut lleg = create_linked_frame("left_leg");
-    lleg.transform = Isometry3::from_parts(
-        Translation3::new(0.2, 0.2, 0.0),
-        UnitQuaternion::identity());
+    lleg.transform = Isometry3::from_parts(Translation3::new(0.2, 0.2, 0.0),
+                                           UnitQuaternion::identity());
 
     let mut rleg = create_linked_frame("right_leg");
-    rleg.transform = Isometry3::from_parts(
-        Translation3::new(-0.2, 0.2, 0.0),
-        UnitQuaternion::identity());
+    rleg.transform = Isometry3::from_parts(Translation3::new(-0.2, 0.2, 0.0),
+                                           UnitQuaternion::identity());
     let mut larm = create_linked_frame("left_arm");
-    larm.transform = Isometry3::from_parts(
-        Translation3::new(0.2, -0.2, 0.0),
-        UnitQuaternion::identity());
+    larm.transform = Isometry3::from_parts(Translation3::new(0.2, -0.2, 0.0),
+                                           UnitQuaternion::identity());
     let mut rarm = create_linked_frame("right_arm");
-    rarm.transform = Isometry3::from_parts(
-        Translation3::new(-0.2, -0.2, 0.0),
-        UnitQuaternion::identity());
+    rarm.transform = Isometry3::from_parts(Translation3::new(-0.2, -0.2, 0.0),
+                                           UnitQuaternion::identity());
 
     let mut rf = RobotFrame::new("robo", vec![lleg, rleg, larm, rarm]);
 
@@ -75,7 +65,7 @@ fn main() {
                          create_cubes(&mut window)];
     let mut root_cube = window.add_cube(0.2, 0.2, 0.2);
 
-    let mut angles = vec!(0.0, 0.0, 0.0);
+    let mut angles = vec![0.0, 0.0, 0.0];
     let mut t = 0.0;
     while window.render() {
         t += 0.1;
@@ -85,9 +75,8 @@ fn main() {
         for fr in &mut rf.frames {
             fr.set_joint_angles(&angles);
         }
-        rf.transform = Isometry3::from_parts(
-            Translation3::new(0.0, 0.1 * t.sin(), 0.0),
-            UnitQuaternion::from_euler_angles(3.14, 0.0, 0.0));
+        rf.transform = Isometry3::from_parts(Translation3::new(0.0, 0.1 * t.sin(), 0.0),
+                                             UnitQuaternion::from_euler_angles(3.14, 0.0, 0.0));
         for (i, trans) in rf.calc_transforms().iter().enumerate() {
             for j in 0..4 {
                 cubes[i][j].set_local_transformation(trans[j]);
