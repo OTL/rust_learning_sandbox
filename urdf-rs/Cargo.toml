@@ -1,0 +1,9 @@
+[package]
+name = "urdf-rs"
+version = "0.1.0"
+authors = ["Takashi Ogura <t.ogura@gmail.com>"]
+
+[dependencies]
+serde-xml-rs = "0.1.2"
+serde = "0.9.7"
+serde_derive = "0.9.7"
