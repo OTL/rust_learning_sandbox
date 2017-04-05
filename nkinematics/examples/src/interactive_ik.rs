@@ -9,7 +9,7 @@ use kiss3d::camera::ArcBall;
 use kiss3d::light::Light;
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
-use na::{Isometry3, Vector3, Translation3, UnitQuaternion, Vector6, Point3};
+use na::{Isometry3, Vector3, Translation3, UnitQuaternion, Point3};
 use nkinematics::*;
 
 fn create_linked_frame(name: &str) -> LinkedFrame<f32> {
@@ -48,8 +48,14 @@ fn create_linked_frame(name: &str) -> LinkedFrame<f32> {
                JointType::Rotational { axis: Vector3::y_axis() })
         .translation(Translation3::new(0.0, 0.0, -0.15))
         .finalize();
+    let l6 = LinkedJointBuilder::new()
+        .name("wrist_link3")
+        .joint("wrist_roll",
+               JointType::Rotational { axis: Vector3::x_axis() })
+        .translation(Translation3::new(0.0, 0.0, -0.10))
+        .finalize();
     let mut lf1 = LinkedFrame::new(name);
-    lf1.linked_joints = vec![l0, l1, l2, l3, l4, l5];
+    lf1.linked_joints = vec![l0, l1, l2, l3, l4, l5, l6];
     lf1
 }
 
@@ -68,7 +74,9 @@ fn create_cubes(window: &mut Window) -> Vec<SceneNode> {
     c5.set_color(0.5, 0.0, 1.0);
     let mut c6 = window.add_cube(0.1, 0.1, 0.1);
     c6.set_color(0.0, 0.5, 0.2);
-    vec![c0, c1, c2, c3, c4, c5, c6]
+    let mut c7 = window.add_cube(0.1, 0.1, 0.1);
+    c7.set_color(0.5, 0.5, 0.2);
+    vec![c0, c1, c2, c3, c4, c5, c6, c7]
 }
 
 fn main() {
@@ -77,13 +85,7 @@ fn main() {
     let mut window = Window::new("nkinematics ui");
     window.set_light(Light::StickToCamera);
     let mut cubes = create_cubes(&mut window);
-    let orig_angles_vec = Vector6::new(0.5, 0.2, 0.0, -1.0, 0.0, 0.0);
-    let angles = vec![orig_angles_vec[0],
-                      orig_angles_vec[1],
-                      orig_angles_vec[2],
-                      orig_angles_vec[3],
-                      orig_angles_vec[4],
-                      orig_angles_vec[5]];
+    let angles = vec![0.5, 0.2, 0.0, -1.0, 0.0, 0.0, 0.0];
     arm.set_joint_angles(&angles);
     let mut target = Isometry3::from_parts(Translation3::new(0.40, 0.2, -0.3),
                                            UnitQuaternion::from_euler_angles(0.0, -1.0, 0.0));
@@ -104,20 +106,26 @@ fn main() {
             match event.value {
                 WindowEvent::Key(code, _, Action::Release, _) => {
                     match code {
-                        Key::R => {
+                        Key::Z => {
                             arm.set_joint_angles(&angles);
-                        }
-                        Key::P => {
-                            target.translation.vector[2] -= 0.1;
-                        }
-                        Key::N => {
-                            target.translation.vector[2] += 0.1;
                         }
                         Key::F => {
                             target.translation.vector[0] += 0.1;
                         }
                         Key::B => {
                             target.translation.vector[0] -= 0.1;
+                        }
+                        Key::R => {
+                            target.translation.vector[1] += 0.1;
+                        }
+                        Key::L => {
+                            target.translation.vector[1] -= 0.1;
+                        }
+                        Key::P => {
+                            target.translation.vector[2] -= 0.1;
+                        }
+                        Key::N => {
+                            target.translation.vector[2] += 0.1;
                         }
                         _ => {}
                     }
