@@ -2,10 +2,12 @@ extern crate nalgebra as na;
 
 use alga::general::Real;
 use na::{Isometry3, Vector3, Unit, UnitQuaternion, Translation3};
+use std::error::Error;
+use std::fmt;
 
 #[derive(Copy)]
 pub enum JointType<T: Real> {
-    /// Fixed joint. angle is not used.
+    /// Fixed joitn
     Fixed,
     /// Rotational joint around axis. angle [rad].
     Rotational { axis: Unit<Vector3<T>> },
@@ -20,6 +22,31 @@ impl<T> Clone for JointType<T>
         *self
     }
 }
+
+#[derive(Debug)]
+pub enum JointError {
+    OutOfLimit,
+    SizeMisMatch,
+}
+
+impl fmt::Display for JointError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            JointError::OutOfLimit => write!(f, "limit over"),
+            JointError::SizeMisMatch => write!(f, "size is invalid"),
+        }
+    }
+}
+
+impl Error for JointError {
+    fn description(&self) -> &str {
+        match *self {
+            JointError::OutOfLimit => "limit over",
+            JointError::SizeMisMatch => "size is invalid",
+        }
+    }
+}
+
 
 pub struct RobotFrame<T: Real> {
     pub name: String,
@@ -85,10 +112,15 @@ impl<T> LinkedFrame<T>
         self.calc_transforms().last().unwrap().clone()
     }
 
-    pub fn set_joint_angles(&mut self, angles: &Vec<T>) {
-        for (i, ang) in angles.iter().enumerate() {
-            self.linked_joints[i].set_joint_angle(*ang);
+    /// if failed, joints angles are non determined,
+    pub fn set_joint_angles(&mut self, angles: &Vec<T>) -> Result<(), JointError> {
+        if angles.len() != self.linked_joints.len() {
+            return Err(JointError::SizeMisMatch);
         }
+        for (i, ang) in angles.iter().enumerate() {
+            try!(self.linked_joints[i].set_joint_angle(*ang));
+        }
+        Ok(())
     }
     pub fn get_joint_angles(&self) -> Vec<T> {
         self.linked_joints
@@ -126,7 +158,7 @@ impl<T> LinkedJoint<T>
     pub fn calc_transform(&self) -> Isometry3<T> {
         self.joint.calc_transform() * self.transform
     }
-    pub fn set_joint_angle(&mut self, angle: T) {
+    pub fn set_joint_angle(&mut self, angle: T) -> Result<(), JointError> {
         self.joint.set_angle(angle)
     }
     pub fn get_joint_angle(&self) -> T {
@@ -134,9 +166,16 @@ impl<T> LinkedJoint<T>
     }
 }
 
+#[derive(Clone)]
 pub struct Range<T: Real> {
     pub min: T,
     pub max: T,
+}
+
+impl<T> Range<T> where T: Real {
+    pub fn is_valid(&self, val: T) -> bool {
+        val < self.max && val > self.min
+    }
 }
 
 /// Joint with type
@@ -161,8 +200,13 @@ impl<T> Joint<T>
     pub fn set_limits(&mut self, limits: Option<Range<T>>) {
         self.limits = limits;
     }
-    pub fn set_angle(&mut self, angle: T) {
+    pub fn set_angle(&mut self, angle: T) -> Result<(), JointError> {
+        match self.limits.clone() {
+            Some(range) => { if !range.is_valid(angle) { return Err(JointError::OutOfLimit); } },
+            None => {},
+        }
         self.angle = angle;
+        Ok(())
     }
     pub fn get_angle(&self) -> T {
         self.angle

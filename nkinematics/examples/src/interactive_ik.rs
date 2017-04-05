@@ -86,7 +86,7 @@ fn main() {
     window.set_light(Light::StickToCamera);
     let mut cubes = create_cubes(&mut window);
     let angles = vec![0.5, 0.2, 0.0, -1.0, 0.0, 0.0, 0.0];
-    arm.set_joint_angles(&angles);
+    arm.set_joint_angles(&angles).unwrap();
     let mut target = Isometry3::from_parts(Translation3::new(0.40, 0.2, -0.3),
                                            UnitQuaternion::from_euler_angles(0.0, -1.0, 0.0));
 
@@ -107,7 +107,7 @@ fn main() {
                 WindowEvent::Key(code, _, Action::Release, _) => {
                     match code {
                         Key::Z => {
-                            arm.set_joint_angles(&angles);
+                            arm.set_joint_angles(&angles).unwrap();
                         }
                         Key::F => {
                             target.translation.vector[0] += 0.1;

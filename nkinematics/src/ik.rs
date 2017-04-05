@@ -49,14 +49,22 @@ pub enum IKError {
     NotConverged,
     InverseMatrixError,
     PreconditionError,
+    JointOutOfLimit(JointError),
+}
+
+impl From<JointError> for IKError {
+    fn from(err: JointError) -> IKError {
+        IKError::JointOutOfLimit(err)
+    }
 }
 
 impl fmt::Display for IKError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            IKError::NotConverged => write!(f, "not converted"),
-            IKError::InverseMatrixError => write!(f, "failed to solve inverse matrix"),
-            IKError::PreconditionError => write!(f, "precondition not match"),
+            IKError::NotConverged => write!(f, "ik solve not converted"),
+            IKError::InverseMatrixError => write!(f, "ik failed to solve inverse matrix"),
+            IKError::PreconditionError => write!(f, "ik precondition not match"),
+            IKError::JointOutOfLimit(ref err) => write!(f, "ik error : {}", err),
         }
     }
 }
@@ -67,9 +75,11 @@ impl Error for IKError {
             IKError::NotConverged => "not converted",
             IKError::InverseMatrixError => "inverse matrix error",
             IKError::PreconditionError => "precondition not match",
+            IKError::JointOutOfLimit(ref err) => err.description(),
         }
     }
 }
+
 
 #[derive(Debug)]
 pub struct InverseKinematicsSolver<T: Real> {
@@ -110,19 +120,13 @@ impl<T> InverseKinematicsSolver<T>
         for i in 0..dof {
             let mut small_diff_angles_i = orig_angles.clone();
             small_diff_angles_i[i] += self.jacobian_move_epsilon;
-            arm.set_joint_angles(&small_diff_angles_i);
+            try!(arm.set_joint_angles(&small_diff_angles_i));
             let small_diff_pose6 = calc_vector6_pose(&arm.calc_end_transform());
             jacobi_vec.push(small_diff_pose6 - orig_pose6);
         }
         let jacobi = DMatrix::from_fn(6, dof, |r, c| jacobi_vec[c][r]);
         let j_inv = if dof > 6 {
             // use pseudo inverse
-                /*
-                try!(((jacobi.transpose() * &jacobi).try_inverse())
-                     .ok_or(IKError::InverseMatrixError))
-                    * jacobi.transpose()
-                 */
-
             jacobi.transpose() *
             try!((&jacobi * jacobi.transpose())
                      .try_inverse()
@@ -137,7 +141,7 @@ impl<T> InverseKinematicsSolver<T>
         for i in 0..dof {
             angles_vec.push(new_angles[i]);
         }
-        arm.set_joint_angles(&angles_vec);
+        try!(arm.set_joint_angles(&angles_vec));
         let new_pose6 = calc_vector6_pose(&arm.calc_end_transform());
         Ok((target_pose6 - new_pose6).norm())
     }
@@ -157,7 +161,7 @@ impl<T> InverseKinematicsSolver<T>
                 return Ok(target_distance);
             }
         }
-        arm.set_joint_angles(&orig_angles);
+        try!(arm.set_joint_angles(&orig_angles));
         Err(IKError::NotConverged)
     }
 }
