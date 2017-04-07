@@ -73,7 +73,7 @@ fn main() {
         angles[1] = t.cos() * 0.05;
         angles[2] = t.sin();
         for fr in &mut rf.frames {
-            fr.set_joint_angles(&angles);
+            fr.set_joint_angles(&angles).unwrap();
         }
         rf.transform = Isometry3::from_parts(Translation3::new(0.0, 0.1 * t.sin(), 0.0),
                                              UnitQuaternion::from_euler_angles(3.14, 0.0, 0.0));

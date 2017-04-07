@@ -1,10 +1,11 @@
 extern crate nalgebra as na;
 
 use alga::general::Real;
-use na::{Isometry3, Vector3, Vector6, DVector, UnitQuaternion, DMatrix};
+use na::{Isometry3, Vector6, DMatrix};
 use std::error::Error;
 use std::fmt;
 use links::*;
+use math::*;
 
 fn calc_vector6_pose<T: Real>(pose: &Isometry3<T>) -> Vector6<T> {
     let rpy = to_euler_angles(&pose.rotation);
@@ -14,34 +15,6 @@ fn calc_vector6_pose<T: Real>(pose: &Isometry3<T>) -> Vector6<T> {
                  rpy[0],
                  rpy[1],
                  rpy[2])
-}
-
-fn to_euler_angles<T: Real>(q: &UnitQuaternion<T>) -> Vector3<T> {
-    let x = q[0];
-    let y = q[1];
-    let z = q[2];
-    let w = q[3];
-    let ysqr = y * y;
-    let _1: T = T::one();
-    let _2: T = na::convert(2.0);
-
-    // roll
-    let t0 = _2 * (w * x + y * z);
-    let t1 = _1 - _2 * (x * x + ysqr);
-    let roll = t0.atan2(t1);
-
-    // pitch
-    let t2 = _2 * (w * y - z * x);
-    let t2 = if t2 > _1 { _1 } else { t2 };
-    let t2 = if t2 < -_1 { -_1 } else { t2 };
-    let pitch = t2.asin();
-
-    // yaw
-    let t3 = _2 * (w * z + x * y);
-    let t4 = _1 - _2 * (ysqr + z * z);
-    let yaw = t3.atan2(t4);
-
-    Vector3::new(roll, pitch, yaw)
 }
 
 #[derive(Debug)]
@@ -72,7 +45,7 @@ impl fmt::Display for IKError {
 impl Error for IKError {
     fn description(&self) -> &str {
         match *self {
-            IKError::NotConverged => "not converted",
+            IKError::NotConverged => "not converged",
             IKError::InverseMatrixError => "inverse matrix error",
             IKError::PreconditionError => "precondition not match",
             IKError::JointOutOfLimit(ref err) => err.description(),
@@ -107,13 +80,6 @@ impl<T> InverseKinematicsSolver<T>
                       -> Result<T, IKError> {
         let dof = arm.linked_joints.len();
         let orig_angles = arm.get_joint_angles();
-        //        let orig_angles_vec = DVector::from_fn(|i| orig_angles[i]);
-        //        let orig_angles_vec = DVector::from_iterator(dof, orig_angles.iter());
-        let mut orig_angles_vec = DVector::from_element(dof, T::zero());
-        for i in 0..dof {
-            orig_angles_vec[i] = orig_angles[i];
-        }
-        //println!("{}", orig_angles_vec);
         let orig_pose6 = calc_vector6_pose(&arm.calc_end_transform());
         let target_pose6 = calc_vector6_pose(&target_pose);
         let mut jacobi_vec = Vec::new();
@@ -127,19 +93,14 @@ impl<T> InverseKinematicsSolver<T>
         let jacobi = DMatrix::from_fn(6, dof, |r, c| jacobi_vec[c][r]);
         let j_inv = if dof > 6 {
             // use pseudo inverse
-            jacobi.transpose() *
-            try!((&jacobi * jacobi.transpose())
-                     .try_inverse()
-                     .ok_or(IKError::InverseMatrixError))
+            try!(try_pseudo_inverse(&jacobi).ok_or(IKError::InverseMatrixError))
         } else {
             try!(jacobi.try_inverse().ok_or(IKError::InverseMatrixError))
         };
         let new_angles_diff = j_inv * (target_pose6 - orig_pose6) * self.jacobian_move_epsilon;
-        //println!("{:}", new_angles_diff);
-        let new_angles = orig_angles_vec + new_angles_diff;
         let mut angles_vec = Vec::new();
         for i in 0..dof {
-            angles_vec.push(new_angles[i]);
+            angles_vec.push(orig_angles[i] + new_angles_diff[i]);
         }
         try!(arm.set_joint_angles(&angles_vec));
         let new_pose6 = calc_vector6_pose(&arm.calc_end_transform());
