@@ -2,12 +2,12 @@
 extern crate serde_derive;
 extern crate serde_xml_rs;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct Mass {
     pub value: f64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct Inertia {
     pub ixx: f64,
     pub ixy: f64,
@@ -17,130 +17,75 @@ pub struct Inertia {
     pub izz: f64,
 }
 
-fn default_pose() -> Pose {
-    Pose {
-        xyz: empty_vec3(),
-        rpy: empty_vec3(),
-    }
-}
-
-fn default_mass() -> Mass {
-    Mass { value: 0.0 }
-}
-
-fn default_inertia() -> Inertia {
-    Inertia {
-        ixx: 0.0,
-        ixy: 0.0,
-        ixz: 0.0,
-        iyy: 0.0,
-        iyz: 0.0,
-        izz: 0.0,
-    }
-}
-
-fn default_inertial() -> Inertial {
-    Inertial {
-        origin: default_pose(),
-        mass: default_mass(),
-        inertia: default_inertia(),
-    }
-}
-
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct Inertial {
-    #[serde(default = "default_pose")]
+    #[serde(default)]
     pub origin: Pose,
     pub mass: Mass,
     pub inertia: Inertia,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Geometry {
-    #[serde(rename = "box")]
     Box { size: String },
-    #[serde(rename = "cylinder")]
     Cylinder { radius: f64, length: f64 },
-    #[serde(rename = "sphere")]
     Sphere { radius: f64 },
-    #[serde(rename = "mesh")]
     Mesh { filename: String, scale: f64 },
 }
 
+impl Default for Geometry {
+    fn default() -> Geometry {
+        Geometry::Box { size: "0 0 0".to_string() }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct Color {
-    #[serde(default)]
     pub rgba: String,
+}
+
+impl Default for Color {
+    fn default() -> Color {
+        Color { rgba: "0 0 0 0".to_string() }
+    }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Texture {
-    #[serde(default)]
     pub filename: String,
 }
 
-#[derive(Debug, Deserialize)]
+impl Default for Texture {
+    fn default() -> Texture {
+        Texture { filename: "".to_string() }
+    }
+}
+
+#[derive(Debug, Deserialize, Default)]
 pub struct Material {
     #[serde(default)]
     pub name: String,
-    #[serde(default = "default_color")]
+    #[serde(default)]
     pub color: Color,
-    #[serde(default = "default_texture")]
+    #[serde(default)]
     pub texture: Texture,
 }
 
-fn default_geometry() -> Geometry {
-    Geometry::Box { size: "0 0 0".to_string() }
-}
 
-fn default_visual() -> Visual {
-    Visual {
-        name: "".to_string(),
-        origin: default_pose(),
-        geometry: default_geometry(),
-        material: default_material(),
-    }
-}
-
-fn default_texture() -> Texture {
-    Texture { filename: "".to_string() }
-}
-
-fn default_color() -> Color {
-    Color { rgba: "0 0 0 0".to_string() }
-}
-
-fn default_material() -> Material {
-    Material {
-        name: "".to_string(),
-        color: default_color(),
-        texture: default_texture(),
-    }
-}
-
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct Visual {
     #[serde(default)]
     pub name: String,
-    #[serde(default = "default_pose")]
+    #[serde(default)]
     pub origin: Pose,
     pub geometry: Geometry,
-    #[serde(default = "default_material")]
+    #[serde(default)]
     pub material: Material,
 }
 
-fn default_collision() -> Collision {
-    Collision {
-        name: "".to_string(),
-        origin: default_pose(),
-        geometry: default_geometry(),
-    }
-}
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct Collision {
     #[serde(default)]
     pub name: String,
@@ -151,11 +96,11 @@ pub struct Collision {
 #[derive(Debug, Deserialize)]
 pub struct Link {
     pub name: String,
-    #[serde(default = "default_inertial")]
+    #[serde(default)]
     pub inertial: Inertial,
-    #[serde(default = "default_visual")]
+    #[serde(default)]
     pub visual: Visual,
-    #[serde(default = "default_collision")]
+    #[serde(default)]
     pub collision: Collision,
 }
 
@@ -166,6 +111,7 @@ pub struct Axis {
 
 fn parse_array_from_string(string: &str) -> [f64; 3] {
     let vec = string.split(" ").filter_map(|x| x.parse::<f64>().ok()).collect::<Vec<_>>();
+    assert!(vec.len() == 3);
     let mut arr = [0.0f64; 3];
     for i in 0..3 {
         arr[i] = vec[i];
@@ -179,19 +125,17 @@ impl Axis {
     }
 }
 
-fn default_axis() -> Axis {
-    Axis { xyz: "1 0 0".to_string() }
-}
-
-fn empty_vec3() -> String {
-    "0 0 0".to_string()
+impl Default for Axis {
+    fn default() -> Axis {
+        Axis { xyz: "1 0 0".to_string() }
+    }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Pose {
-    #[serde(default = "empty_vec3")]
+    #[serde(default)]
     pub xyz: String,
-    #[serde(default = "empty_vec3")]
+    #[serde(default)]
     pub rpy: String,
 }
 
@@ -204,9 +148,54 @@ impl Pose {
     }
 }
 
+impl Default for Pose {
+    fn default() -> Pose {
+        Pose {
+            xyz: "0 0 0".to_string(),
+            rpy: "0 0 0".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct LinkName {
     pub link: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum JointType {
+    Revolute,
+    Continuous,
+    Prismatic,
+    Fixed,
+    Floating,
+    Planar,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct JointLimit {
+    #[serde(default)]
+    pub lower: f64,
+    #[serde(default)]
+    pub upper: f64,
+    pub effort: f64,
+    pub velocity: f64,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct Mimic {
+    joint: String,
+    multiplier: f64,
+    offset: f64,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct SafetyController {
+    soft_lower_limit: f64,
+    soft_upper_limit: f64,
+    k_position: f64,
+    k_velocity: f64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -214,12 +203,25 @@ pub struct Joint {
     pub name: String,
     #[serde(rename = "type")]
     pub joint_type: String,
-    #[serde(default = "default_pose")]
+    #[serde(default)]
     pub origin: Pose,
     pub parent: LinkName,
     pub child: LinkName,
-    #[serde(default = "default_axis")]
+    #[serde(default)]
     pub axis: Axis,
+    pub limit: JointLimit,
+    #[serde(default)]
+    pub dynamics: Dynamics,
+    #[serde(default)]
+    pub mimic: Mimic,
+    #[serde(default)]
+    pub safety_controller: SafetyController,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct Dynamics {
+    damping: f64,
+    friction: f64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -233,10 +235,12 @@ pub struct Robot {
     pub joints: Vec<Joint>,
 }
 
+pub fn deserialize(string: &str) -> Result<Robot, serde_xml_rs::Error> {
+    serde_xml_rs::deserialize(string.as_bytes())
+}
 
 #[test]
 fn it_works() {
-    use serde_xml_rs::deserialize;
     let s = r##"
         <robot name="robo">
             <link name="shoulder1">
@@ -268,16 +272,19 @@ fn it_works() {
                 <parent link="shoulder1" />
                 <child link="elbow1" />
                 <axis xyz="0 1 -1" />
+                <limit lower="-1" upper="1.0" effort="0" velocity="1.0"/>
             </joint>
             <joint name="shoulder_pitch" type="revolute">
                 <origin xyz="0.0, 0.0, 0.0" />
                 <parent link="elbow1" />
                 <child link="wrist1" />
                 <axis xyz="0 1 0" />
+                <limit lower="-2" upper="1.0" effort="0" velocity="1.0"/>
             </joint>
         </robot>
     "##;
-    let robo: Robot = deserialize(s.as_bytes()).unwrap();
+    let robo = deserialize(s).unwrap();
+
     assert_eq!(robo.name, "robo");
     assert_eq!(robo.links.len(), 3);
     assert_eq!(robo.joints.len(), 2);
