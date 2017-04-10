@@ -1,5 +1,6 @@
 extern crate nalgebra as na;
 
+use std::marker::PhantomData;
 use alga::general::Real;
 use na::{Isometry3, Vector6, DMatrix};
 use std::error::Error;
@@ -54,32 +55,40 @@ impl Error for IKError {
 }
 
 
+pub trait InverseKinematicsSolver<T, K>
+    where T: Real,
+          K: KinematicChain<T>
+{
+    fn solve(&self, arm: &mut K, target_pose: &Isometry3<T>) -> Result<T, IKError>;
+}
+
+
 #[derive(Debug)]
-pub struct InverseKinematicsSolver<T: Real> {
+pub struct JacobianIKSolver<T: Real, K: KinematicChain<T>> {
     pub jacobian_move_epsilon: T,
     pub allowable_target_distance: T,
     pub num_max_try: i32,
+    phantom: PhantomData<K>,
 }
 
-impl<T> InverseKinematicsSolver<T>
-    where T: Real
+impl<T, K> JacobianIKSolver<T, K>
+    where T: Real,
+          K: KinematicChain<T>
 {
     pub fn new(jacobian_move_epsilon: T,
                allowable_target_distance: T,
                num_max_try: i32)
-               -> InverseKinematicsSolver<T> {
-        InverseKinematicsSolver {
+               -> JacobianIKSolver<T, K> {
+        JacobianIKSolver {
             jacobian_move_epsilon: jacobian_move_epsilon,
             allowable_target_distance: allowable_target_distance,
             num_max_try: num_max_try,
+            phantom: PhantomData::<K>,
         }
     }
-    fn solve_one_loop(&self,
-                      arm: &mut LinkedFrame<T>,
-                      target_pose: &Isometry3<T>)
-                      -> Result<T, IKError> {
-        let dof = arm.linked_joints.len();
+    fn solve_one_loop(&self, arm: &mut K, target_pose: &Isometry3<T>) -> Result<T, IKError> {
         let orig_angles = arm.get_joint_angles();
+        let dof = orig_angles.len();
         let orig_pose6 = calc_vector6_pose(&arm.calc_end_transform());
         let target_pose6 = calc_vector6_pose(&target_pose);
         let mut jacobi_vec = Vec::new();
@@ -106,16 +115,18 @@ impl<T> InverseKinematicsSolver<T>
         let new_pose6 = calc_vector6_pose(&arm.calc_end_transform());
         Ok((target_pose6 - new_pose6).norm())
     }
+}
 
-    pub fn solve(&self,
-                 arm: &mut LinkedFrame<T>,
-                 target_pose: &Isometry3<T>)
-                 -> Result<T, IKError> {
-        if arm.linked_joints.len() < 6 {
+impl<T, K> InverseKinematicsSolver<T, K> for JacobianIKSolver<T, K>
+    where T: Real,
+          K: KinematicChain<T>
+{
+    fn solve(&self, arm: &mut K, target_pose: &Isometry3<T>) -> Result<T, IKError> {
+        let orig_angles = arm.get_joint_angles();
+        if orig_angles.len() < 6 {
             println!("support only 6 or more DoF now");
             return Err(IKError::PreconditionError);
         }
-        let orig_angles = arm.get_joint_angles();
         for _ in 0..self.num_max_try {
             let target_distance = try!(self.solve_one_loop(arm, &target_pose));
             if target_distance < self.allowable_target_distance {

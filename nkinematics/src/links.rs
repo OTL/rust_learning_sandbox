@@ -64,17 +64,25 @@ impl<T> RobotFrame<T>
             transform: Isometry3::identity(),
         }
     }
-    pub fn calc_transforms(&self) -> Vec<Vec<Isometry3<T>>> {
+    pub fn calc_link_transforms(&self) -> Vec<Vec<Isometry3<T>>> {
         self.frames
             .iter()
             .map(|ref lf| {
-                     lf.calc_transforms()
+                     lf.calc_link_transforms()
                          .iter()
                          .map(|&tf| self.transform * tf)
                          .collect()
                  })
             .collect()
     }
+}
+
+pub trait KinematicChain<T>
+    where T: Real
+{
+    fn calc_end_transform(&self) -> Isometry3<T>;
+    fn set_joint_angles(&mut self, angles: &Vec<T>) -> Result<(), JointError>;
+    fn get_joint_angles(&self) -> Vec<T>;
 }
 
 /// Set of Joint and Link
@@ -98,34 +106,46 @@ impl<T> LinkedFrame<T>
             transform: Isometry3::identity(),
         }
     }
-    pub fn calc_transforms(&self) -> Vec<Isometry3<T>> {
-        let mut vec = Vec::new();
-        vec.push(self.transform);
-        for lj in &self.linked_joints {
-            let next = vec.last().unwrap() * lj.calc_transform();
-            vec.push(next);
-        }
-        vec
+    /// returns transforms of links
+    pub fn calc_link_transforms(&self) -> Vec<Isometry3<T>> {
+        self.linked_joints
+            .iter()
+            .scan(self.transform, |base, ref lj| {
+                *base *= lj.calc_transform();
+                Some(*base)
+            })
+            .collect()
     }
+}
 
-    pub fn calc_end_transform(&self) -> Isometry3<T> {
-        self.calc_transforms().last().unwrap().clone()
+impl<T> KinematicChain<T> for LinkedFrame<T>
+    where T: Real
+{
+    fn calc_end_transform(&self) -> Isometry3<T> {
+        self.linked_joints
+            .iter()
+            .fold(self.transform, |trans, ref lj| trans * lj.calc_transform())
     }
 
     /// if failed, joints angles are non determined,
-    pub fn set_joint_angles(&mut self, angles: &Vec<T>) -> Result<(), JointError> {
-        if angles.len() != self.linked_joints.len() {
+    fn set_joint_angles(&mut self, angles: &Vec<T>) -> Result<(), JointError> {
+        let mut joints_with_angle = self.linked_joints
+            .iter_mut()
+            .filter(|ref lj| lj.has_joint_angle())
+            .collect::<Vec<_>>();
+        if joints_with_angle.len() != angles.len() {
             return Err(JointError::SizeMisMatch);
         }
-        for (i, ang) in angles.iter().enumerate() {
-            try!(self.linked_joints[i].set_joint_angle(*ang));
+        for (i, lj) in joints_with_angle.iter_mut().enumerate() {
+            try!(lj.set_joint_angle(angles[i]));
         }
+
         Ok(())
     }
-    pub fn get_joint_angles(&self) -> Vec<T> {
+    fn get_joint_angles(&self) -> Vec<T> {
         self.linked_joints
             .iter()
-            .map(|ref linked_joint| linked_joint.get_joint_angle())
+            .filter_map(|ref linked_joint| linked_joint.get_joint_angle())
             .collect()
     }
 }
@@ -161,8 +181,14 @@ impl<T> LinkedJoint<T>
     pub fn set_joint_angle(&mut self, angle: T) -> Result<(), JointError> {
         self.joint.set_angle(angle)
     }
-    pub fn get_joint_angle(&self) -> T {
+    pub fn get_joint_angle(&self) -> Option<T> {
         self.joint.get_angle()
+    }
+    pub fn has_joint_angle(&self) -> bool {
+        match self.joint.joint_type {
+            JointType::Fixed => false,
+            _ => true,
+        }
     }
 }
 
@@ -172,7 +198,9 @@ pub struct Range<T: Real> {
     pub max: T,
 }
 
-impl<T> Range<T> where T: Real {
+impl<T> Range<T>
+    where T: Real
+{
     pub fn is_valid(&self, val: T) -> bool {
         val < self.max && val > self.min
     }
@@ -201,15 +229,26 @@ impl<T> Joint<T>
         self.limits = limits;
     }
     pub fn set_angle(&mut self, angle: T) -> Result<(), JointError> {
+        match self.joint_type {
+            JointType::Fixed => return Err(JointError::OutOfLimit),
+            _ => {}
+        }
         match self.limits.clone() {
-            Some(range) => { if !range.is_valid(angle) { return Err(JointError::OutOfLimit); } },
-            None => {},
+            Some(range) => {
+                if !range.is_valid(angle) {
+                    return Err(JointError::OutOfLimit);
+                }
+            }
+            None => {}
         }
         self.angle = angle;
         Ok(())
     }
-    pub fn get_angle(&self) -> T {
-        self.angle
+    pub fn get_angle(&self) -> Option<T> {
+        match self.joint_type {
+            JointType::Fixed => None,
+            _ => Some(self.angle),
+        }
     }
     pub fn calc_transform(&self) -> Isometry3<T> {
         match self.joint_type {
@@ -232,10 +271,12 @@ impl<T> Joint<T>
 /// # Examples
 ///
 /// ```
-/// let l0 = LinkedJointBuilder::new()
+/// extern crate nalgebra as na;
+/// extern crate nkinematics as nk;
+/// let l0 = nk::LinkedJointBuilder::new()
 ///     .name("link1")
-///     .translation(Translation3::new(0.0, 0.1, 0.0))
-///     .joint("link_pitch", JointType::Rotational{axis: Vector3::y_axis()})
+///     .translation(na::Translation3::new(0.0, 0.1, 0.0))
+///     .joint("link_pitch", nk::JointType::Rotational{axis: na::Vector3::y_axis()})
 ///     .finalize();
 /// ```
 
@@ -281,19 +322,5 @@ impl<T> LinkedJointBuilder<T>
             joint: self.joint,
             transform: self.transform,
         }
-    }
-}
-
-
-mod test {
-    #[test]
-    fn test_to_euler_angles() {
-        use super::*;
-        let q = na::UnitQuaternion::from_euler_angles(0.1, 0.2, 0.3);
-        let rpy = to_euler_angles(&q);
-        //        println!("{:}", rpy);
-        assert!((rpy[0] - 0.1).abs() < 0.0001);
-        assert!((rpy[1] - 0.2).abs() < 0.0001);
-        assert!((rpy[2] - 0.3).abs() < 0.0001);
     }
 }

@@ -96,7 +96,7 @@ fn main() {
     let at = Point3::origin();
     let mut arc_ball = ArcBall::new(eye, at);
     arc_ball.set_pitch(1.57);
-    let solver = InverseKinematicsSolver::new(0.001, 0.001, 100);
+    let solver = JacobianIKSolver::new(0.001, 0.001, 100);
     //    let mut i = 0;
     while window.render_with_camera(&mut arc_ball) {
         //    while window.render() {
@@ -135,16 +135,16 @@ fn main() {
 
             }
         }
-        //        let dist = arm.solve_inverse_kinematics_one_loop(&target, 0.0001);
-        match solver.solve(&mut arm, &target) {
-            Ok(_) => {}
-            Err(err) => {
-                println!("Err: {}", err);
-            }
-        };
+        solver
+            .solve(&mut arm, &target)
+            .unwrap_or_else(|err| {
+                                println!("Err: {}", err);
+                                0.0f32
+                            });
         c_t.set_local_transformation(target.clone());
-        for (i, trans) in arm.calc_transforms().iter().enumerate() {
-            cubes[i].set_local_transformation(trans.clone());
+        cubes[0].set_local_transformation(arm.transform);
+        for (i, trans) in arm.calc_link_transforms().iter().enumerate() {
+            cubes[i + 1].set_local_transformation(trans.clone());
         }
     }
 

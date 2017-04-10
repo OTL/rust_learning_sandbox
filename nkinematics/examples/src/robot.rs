@@ -77,9 +77,11 @@ fn main() {
         }
         rf.transform = Isometry3::from_parts(Translation3::new(0.0, 0.1 * t.sin(), 0.0),
                                              UnitQuaternion::from_euler_angles(3.14, 0.0, 0.0));
-        for (i, trans) in rf.calc_transforms().iter().enumerate() {
-            for j in 0..4 {
-                cubes[i][j].set_local_transformation(trans[j]);
+
+        for (i, trans_vec) in rf.calc_link_transforms().iter().enumerate() {
+            cubes[i][0].set_local_transformation(rf.transform * rf.frames[i].transform);
+            for (j, trans) in trans_vec.iter().enumerate() {
+                cubes[i][j + 1].set_local_transformation(*trans);
             }
         }
         root_cube.set_local_transformation(rf.transform);
