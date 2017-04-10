@@ -3,12 +3,12 @@ extern crate serde_derive;
 extern crate serde_xml_rs;
 
 #[derive(Debug, Deserialize)]
-struct Mass {
+pub struct Mass {
     pub value: f64,
 }
 
 #[derive(Debug, Deserialize)]
-struct Inertia {
+pub struct Inertia {
     pub ixx: f64,
     pub ixy: f64,
     pub ixz: f64,
@@ -49,7 +49,7 @@ fn default_inertial() -> Inertial {
 
 
 #[derive(Debug, Deserialize)]
-struct Inertial {
+pub struct Inertial {
     #[serde(default = "default_pose")]
     pub origin: Pose,
     pub mass: Mass,
@@ -70,19 +70,19 @@ pub enum Geometry {
 
 
 #[derive(Debug, Deserialize)]
-struct Color {
+pub struct Color {
     #[serde(default)]
-    rgba: String,
+    pub rgba: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct Texture {
+pub struct Texture {
     #[serde(default)]
-    filename: String,
+    pub filename: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct Material {
+pub struct Material {
     #[serde(default)]
     pub name: String,
     #[serde(default = "default_color")]
@@ -122,7 +122,7 @@ fn default_material() -> Material {
 
 
 #[derive(Debug, Deserialize)]
-struct Visual {
+pub struct Visual {
     #[serde(default)]
     pub name: String,
     #[serde(default = "default_pose")]
@@ -141,7 +141,7 @@ fn default_collision() -> Collision {
 }
 
 #[derive(Debug, Deserialize)]
-struct Collision {
+pub struct Collision {
     #[serde(default)]
     pub name: String,
     pub origin: Pose,
@@ -149,7 +149,7 @@ struct Collision {
 }
 
 #[derive(Debug, Deserialize)]
-struct Link {
+pub struct Link {
     pub name: String,
     #[serde(default = "default_inertial")]
     pub inertial: Inertial,
@@ -164,6 +164,21 @@ pub struct Axis {
     pub xyz: String,
 }
 
+fn parse_array_from_string(string: &str) -> [f64; 3] {
+    let vec = string.split(" ").filter_map(|x| x.parse::<f64>().ok()).collect::<Vec<_>>();
+    let mut arr = [0.0f64; 3];
+    for i in 0..3 {
+        arr[i] = vec[i];
+    }
+    arr
+}
+
+impl Axis {
+    pub fn xyz_as_array(&self) -> [f64; 3] {
+        parse_array_from_string(&self.xyz)
+    }
+}
+
 fn default_axis() -> Axis {
     Axis { xyz: "1 0 0".to_string() }
 }
@@ -173,20 +188,29 @@ fn empty_vec3() -> String {
 }
 
 #[derive(Debug, Deserialize)]
-struct Pose {
+pub struct Pose {
     #[serde(default = "empty_vec3")]
     pub xyz: String,
     #[serde(default = "empty_vec3")]
     pub rpy: String,
 }
 
+impl Pose {
+    pub fn xyz_as_array(&self) -> [f64; 3] {
+        parse_array_from_string(&self.xyz)
+    }
+    pub fn rpy_as_array(&self) -> [f64; 3] {
+        parse_array_from_string(&self.rpy)
+    }
+}
+
 #[derive(Debug, Deserialize)]
-struct LinkName {
+pub struct LinkName {
     pub link: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct Joint {
+pub struct Joint {
     pub name: String,
     #[serde(rename = "type")]
     pub joint_type: String,
@@ -199,7 +223,7 @@ struct Joint {
 }
 
 #[derive(Debug, Deserialize)]
-struct Robot {
+pub struct Robot {
     pub name: String,
 
     #[serde(rename = "link", default)]
@@ -216,28 +240,26 @@ fn it_works() {
     let s = r##"
         <robot name="robo">
             <link name="shoulder1">
-   <inertial>
-     <origin xyz="0 0 0.5" rpy="0 0 0"/>
-     <mass value="1"/>
-     <inertia ixx="100"  ixy="0"  ixz="0" iyy="100" iyz="0" izz="100" />
-   </inertial>
-
-   <visual>
-     <origin xyz="0 0 0" rpy="0 0 0" />
-     <geometry>
-       <box size="1 1 1" />
-     </geometry>
-     <material name="Cyan">
-       <color rgba="0 1.0 1.0 1.0"/>
-     </material>
-   </visual>
-
-   <collision>
-     <origin xyz="0 0 0" rpy="0 0 0"/>
-     <geometry>
-       <cylinder radius="1" length="0.5"/>
-     </geometry>
-   </collision>
+                <inertial>
+                    <origin xyz="0 0 0.5" rpy="0 0 0"/>
+                    <mass value="1"/>
+                    <inertia ixx="100"  ixy="0"  ixz="0" iyy="100" iyz="0" izz="100" />
+                </inertial>
+                <visual>
+                    <origin xyz="0.1 0.2 0.3" rpy="-0.1 -0.2  -0.3" />
+                    <geometry>
+                        <box size="1 1 1" />
+                    </geometry>
+                    <material name="Cyan">
+                        <color rgba="0 1.0 1.0 1.0"/>
+                    </material>
+                </visual>
+                <collision>
+                    <origin xyz="0 0 0" rpy="0 0 0"/>
+                    <geometry>
+                        <cylinder radius="1" length="0.5"/>
+                    </geometry>
+                </collision>
             </link>
             <link name="elbow1" />
             <link name="wrist1" />
@@ -245,7 +267,7 @@ fn it_works() {
                 <origin xyz="0.0 0.0 0.1" />
                 <parent link="shoulder1" />
                 <child link="elbow1" />
-                <axis xyz="0 1 0" />
+                <axis xyz="0 1 -1" />
             </joint>
             <joint name="shoulder_pitch" type="revolute">
                 <origin xyz="0.0, 0.0, 0.0" />
@@ -259,7 +281,17 @@ fn it_works() {
     assert_eq!(robo.name, "robo");
     assert_eq!(robo.links.len(), 3);
     assert_eq!(robo.joints.len(), 2);
+    assert_eq!(robo.links[0].visual.origin.xyz_as_array()[0], 0.1);
+    assert_eq!(robo.links[0].visual.origin.xyz_as_array()[1], 0.2);
+    assert_eq!(robo.links[0].visual.origin.xyz_as_array()[2], 0.3);
+    assert_eq!(robo.links[0].visual.origin.rpy_as_array()[0], -0.1);
+    assert_eq!(robo.links[0].visual.origin.rpy_as_array()[1], -0.2);
+    assert_eq!(robo.links[0].visual.origin.rpy_as_array()[2], -0.3);
+
     assert_eq!(robo.joints[0].name, "shoulder_pitch");
-    assert_eq!(robo.joints[0].axis.xyz, "0 1 0");
+    assert_eq!(robo.joints[0].axis.xyz, "0 1 -1");
+    assert_eq!(robo.joints[0].axis.xyz_as_array()[0], 0.0f64);
+    assert_eq!(robo.joints[0].axis.xyz_as_array()[1], 1.0f64);
+    assert_eq!(robo.joints[0].axis.xyz_as_array()[2], -1.0f64);
     assert_eq!(robo.joints[0].origin.xyz, "0.0 0.0 0.1");
 }
