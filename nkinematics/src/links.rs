@@ -89,7 +89,9 @@ pub trait KinematicChain<T>
 ///
 /// imagine below structure
 ///
+/// ```
 /// [transform] -> linked_joints([[joint] -> [Link]] -> [[joint] -> [Link]] -> ...)
+/// ```
 pub struct LinkedFrame<T: Real> {
     pub name: String,
     pub linked_joints: Vec<LinkedJoint<T>>,

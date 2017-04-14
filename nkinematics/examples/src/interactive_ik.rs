@@ -59,6 +59,28 @@ fn create_linked_frame(name: &str) -> LinkedFrame<f32> {
     lf1
 }
 
+fn create_ground(window: &mut Window) -> Vec<SceneNode> {
+    let mut panels = Vec::new();
+    let size = 0.5f32;
+    for i in 0..5 {
+        for j in 0..5 {
+            let mut c0 = window.add_cube(size, size, 0.001);
+            if (i + j) % 2 == 0 {
+                c0.set_color(0.0, 0.0, 0.8);
+            } else {
+                c0.set_color(0.2, 0.2, 0.4);
+            }
+            let x_ind = j as f32 - 2.5;
+            let y_ind = i as f32 - 2.5;
+            let trans = Isometry3::from_parts(Translation3::new(size * x_ind, 0.0, size * y_ind),
+                                              UnitQuaternion::from_euler_angles(0.0, -1.57, -1.57));
+            c0.set_local_transformation(trans);
+            panels.push(c0);
+        }
+    }
+    panels
+}
+
 fn create_cubes(window: &mut Window) -> Vec<SceneNode> {
     let mut c0 = window.add_cube(0.1, 0.1, 0.1);
     c0.set_color(1.0, 0.0, 1.0);
@@ -85,47 +107,50 @@ fn main() {
     let mut window = Window::new("nkinematics ui");
     window.set_light(Light::StickToCamera);
     let mut cubes = create_cubes(&mut window);
-    let angles = vec![0.5, 0.2, 0.0, -1.0, 0.0, 0.0, 0.0];
+    let angles = vec![0.8, 0.2, 0.0, -1.5, 0.0, -0.3, 0.0];
     arm.set_joint_angles(&angles).unwrap();
-    let mut target = Isometry3::from_parts(Translation3::new(0.40, 0.2, -0.3),
-                                           UnitQuaternion::from_euler_angles(0.0, -1.0, 0.0));
+    let base_rot = Isometry3::from_parts(Translation3::new(0.0, 0.0, 0.0),
+                                         UnitQuaternion::from_euler_angles(0.0, -1.57, -1.57));
+    arm.transform = base_rot * Isometry3::from_parts(Translation3::new(0.0, 0.0, 0.6),
+                                                     UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0));
+    let mut target = arm.calc_end_transform();
 
     let mut c_t = window.add_sphere(0.05);
     c_t.set_color(1.0, 0.2, 0.2);
-    let eye = Point3::new(2.0f32, 1.0, 2.0);
-    let at = Point3::origin();
+    let eye = Point3::new(0.5f32, 1.0, 2.0);
+    let at = Point3::new(0.0f32, 0.0, 0.0);
     let mut arc_ball = ArcBall::new(eye, at);
-    arc_ball.set_pitch(1.57);
+
     let solver = JacobianIKSolver::new(0.001, 0.001, 100);
-    //    let mut i = 0;
+    let _ = create_ground(&mut window);
+
     while window.render_with_camera(&mut arc_ball) {
-        //    while window.render() {
-        //        let curr_yaw = arc_ball.yaw();
-        //        arc_ball.set_yaw(curr_yaw + 0.05);
         for mut event in window.events().iter() {
             match event.value {
                 WindowEvent::Key(code, _, Action::Release, _) => {
                     match code {
                         Key::Z => {
+                            // reset
                             arm.set_joint_angles(&angles).unwrap();
+                            target = arm.calc_end_transform();
                         }
                         Key::F => {
-                            target.translation.vector[0] += 0.1;
+                            target.translation.vector[2] += 0.1;
                         }
                         Key::B => {
-                            target.translation.vector[0] -= 0.1;
-                        }
-                        Key::R => {
-                            target.translation.vector[1] += 0.1;
-                        }
-                        Key::L => {
-                            target.translation.vector[1] -= 0.1;
-                        }
-                        Key::P => {
                             target.translation.vector[2] -= 0.1;
                         }
+                        Key::R => {
+                            target.translation.vector[0] -= 0.1;
+                        }
+                        Key::L => {
+                            target.translation.vector[0] += 0.1;
+                        }
+                        Key::P => {
+                            target.translation.vector[1] += 0.1;
+                        }
                         Key::N => {
-                            target.translation.vector[2] += 0.1;
+                            target.translation.vector[1] -= 0.1;
                         }
                         _ => {}
                     }
