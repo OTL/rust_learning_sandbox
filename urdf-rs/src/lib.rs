@@ -202,7 +202,7 @@ pub struct SafetyController {
 pub struct Joint {
     pub name: String,
     #[serde(rename = "type")]
-    pub joint_type: String,
+    pub joint_type: JointType,
     #[serde(default)]
     pub origin: Pose,
     pub parent: LinkName,
@@ -235,8 +235,58 @@ pub struct Robot {
     pub joints: Vec<Joint>,
 }
 
-pub fn deserialize(string: &str) -> Result<Robot, serde_xml_rs::Error> {
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug)]
+pub enum UrdfError {
+    File(std::io::Error),
+    Xml(serde_xml_rs::Error),
+}
+
+impl fmt::Display for UrdfError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            UrdfError::File(ref err) => err.fmt(f),
+            UrdfError::Xml(ref err) => err.fmt(f),
+        }
+    }
+}
+
+impl Error for UrdfError {
+    fn description(&self) -> &str {
+        match *self {
+            UrdfError::File(ref err) => err.description(),
+            UrdfError::Xml(ref err) => err.description(),
+        }
+    }
+}
+
+impl From<std::io::Error> for UrdfError {
+    fn from(err: std::io::Error) -> UrdfError {
+        UrdfError::File(err)
+    }
+}
+
+impl From<serde_xml_rs::Error> for UrdfError {
+    fn from(err: serde_xml_rs::Error) -> UrdfError {
+        UrdfError::Xml(err)
+    }
+}
+
+pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Robot, UrdfError> {
+    let mut file = File::open(path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    read_from_string(&contents)
+}
+
+pub fn read_from_string(string: &str) -> Result<Robot, UrdfError> {
     serde_xml_rs::deserialize(string.as_bytes())
+        .map_err(From::from)
 }
 
 #[test]
@@ -283,7 +333,7 @@ fn it_works() {
             </joint>
         </robot>
     "##;
-    let robo = deserialize(s).unwrap();
+    let robo = read_from_string(s).unwrap();
 
     assert_eq!(robo.name, "robo");
     assert_eq!(robo.links.len(), 3);
