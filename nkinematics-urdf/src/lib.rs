@@ -64,46 +64,50 @@ fn get_joint_until_root<'a, 'b>(end_name: &'a str,
     ret
 }
 
-pub fn create_serial_linked_joints_vec<T>(robot: &urdf_rs::Robot) -> Vec<Vec<nk::LinkedJoint<T>>>
+pub fn create_robot<T>(robot: &urdf_rs::Robot) -> nk::RobotFrame<T>
     where T: Real
 {
     // find end links
     let mut link_map = HashMap::new();
     for l in robot.links.iter() {
-        link_map.insert(&l.name, l);
+        match link_map.insert(&l.name, l) {
+            Some(old) => println!("old {:?} found", old),
+            None => {}
+        }
     }
     let mut child_joint_map = HashMap::<&str, &urdf_rs::Joint>::new();
     for j in robot.joints.iter() {
-        child_joint_map.insert(&j.child.link, j);
+        match child_joint_map.insert(&j.child.link, j) {
+            Some(old) => println!("old {:?} found", old),
+            None => {}
+        }
     }
     for joint in robot.joints.iter() {
         link_map.remove(&joint.parent.link);
     }
     // link_map contains end links only here
-    link_map
-        .keys()
-        .map(|end_name| {
-                 get_joint_until_root(&end_name, &child_joint_map)
-                     .iter()
-                     .map(|urdf_joint| create_linked_joint_from_urdf_joint(urdf_joint))
-                     .collect()
-             })
-        .collect()
+    nk::RobotFrame::new(
+        &robot.name,
+        link_map
+            .keys()
+            .map(|end_name| {
+                get_joint_until_root(&end_name, &child_joint_map)
+                    .iter()
+                    .map(|urdf_joint| create_linked_joint_from_urdf_joint(urdf_joint))
+                    .collect()
+            })
+            .map(|link_vec| nk::LinkedFrame::new("", link_vec))
+            .collect())
 }
 
 #[test]
 fn it_works() {
     let robo = urdf_rs::read_file("sample.urdf").unwrap();
     assert_eq!(robo.name, "robo");
-    assert_eq!(robo.links.len(), 7);
-    let linked_joints = robo.joints
-        .iter()
-        .map(|joint| create_linked_joint_from_urdf_joint::<f32>(joint))
-        .collect();
-    let mut lf1 = nk::LinkedFrame::new(&robo.name);
-    lf1.linked_joints = linked_joints;
+    assert_eq!(robo.links.len(), 1 + 6 + 6);
 
-    let lj_vec_vec = create_serial_linked_joints_vec::<f32>(&robo);
-    assert_eq!(lj_vec_vec.len(), 1);
-    assert_eq!(lj_vec_vec[0].len(), 6);
+    let rf = create_robot::<f32>(&robo);
+    assert_eq!(rf.frames.len(), 2);
+    assert_eq!(rf.frames[0].len(), 6);
+    assert_eq!(rf.frames[1].len(), 6);
 }
