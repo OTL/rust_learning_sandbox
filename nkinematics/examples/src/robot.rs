@@ -23,9 +23,8 @@ fn create_linked_frame(name: &str) -> LinkedFrame<f32> {
     let mut linked_joint3 = LinkedJoint::new("link2", j3);
     linked_joint3.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
                                                     UnitQuaternion::identity());
-    let mut lf1 = LinkedFrame::new(name);
-    lf1.linked_joints = vec![linked_joint1, linked_joint2, linked_joint3];
-    lf1
+    LinkedFrame::new(name,
+                     vec![linked_joint1, linked_joint2, linked_joint3])
 }
 
 fn create_cubes(window: &mut Window) -> Vec<SceneNode> {

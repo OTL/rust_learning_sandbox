@@ -52,7 +52,7 @@ impl Error for JointError {
 pub struct RobotFrame<T: Real> {
     pub name: String,
     pub frames: Vec<LinkedFrame<T>>,
-    pub transform: Isometry3<T>,
+    transform: Isometry3<T>,
 }
 
 impl<T> RobotFrame<T>
@@ -75,6 +75,15 @@ impl<T> RobotFrame<T>
                          .collect()
                  })
             .collect()
+    }
+    pub fn set_transform(&mut self, transform: Isometry3<T>) {
+        self.transform = transform;
+        for frame in self.frames.iter_mut() {
+            frame.transform = self.transform * frame.transform;
+        }
+    }
+    pub fn get_transform(&self) -> Isometry3<T> {
+        return self.transform;
     }
 }
 
@@ -103,10 +112,10 @@ pub struct LinkedFrame<T: Real> {
 impl<T> LinkedFrame<T>
     where T: Real
 {
-    pub fn new(name: &str) -> LinkedFrame<T> {
+    pub fn new(name: &str, linked_joints: Vec<LinkedJoint<T>>) -> LinkedFrame<T> {
         LinkedFrame {
             name: name.to_string(),
-            linked_joints: Vec::new(),
+            linked_joints: linked_joints,
             transform: Isometry3::identity(),
         }
     }
@@ -119,6 +128,9 @@ impl<T> LinkedFrame<T>
                 Some(*base)
             })
             .collect()
+    }
+    pub fn len(&self) -> usize {
+        self.linked_joints.len()
     }
 }
 

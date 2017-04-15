@@ -54,9 +54,8 @@ fn create_linked_frame(name: &str) -> LinkedFrame<f32> {
                JointType::Rotational { axis: Vector3::x_axis() })
         .translation(Translation3::new(0.0, 0.0, -0.10))
         .finalize();
-    let mut lf1 = LinkedFrame::new(name);
-    lf1.linked_joints = vec![l0, l1, l2, l3, l4, l5, l6];
-    lf1
+    LinkedFrame::new(name,
+                     vec![l0, l1, l2, l3, l4, l5, l6])
 }
 
 fn create_ground(window: &mut Window) -> Vec<SceneNode> {
