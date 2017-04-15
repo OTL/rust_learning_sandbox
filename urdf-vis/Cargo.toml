@@ -11,3 +11,7 @@ glfw = "0.8.0" # required by kiss3d
 urdf-rs = "0.1.1"
 nkinematics-urdf = { path = "../nkinematics-urdf" }
 nkinematics = { path = "../nkinematics" }
+
+[[bin]]
+name = "urdf_viewer"
+path = "src/urdf_viewer.rs"

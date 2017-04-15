@@ -36,42 +36,4 @@ pub fn add_geometry(visual: &urdf_rs::Visual, window: &mut Window)
 
 #[test]
 fn it_works() {
-    use kiss3d::light::Light;
-    use std::collections::HashMap;
-    use nk::KinematicChain;
-    use alga::general::Real;
-
-    let mut window = Window::new("nkinematics ui");
-    window.set_light(Light::StickToCamera);
-    let urdf_robo = urdf_rs::read_file("sample.urdf").unwrap();
-    let mut manip = nk::LinkedFrame::new("arm");
-    manip.linked_joints = nk_urdf::create_serial_linked_joints_vec::<f32>(&urdf_robo).pop().unwrap();
-    let dof = manip.linked_joints.len();
-    let mut angles = vec![0.0f32; dof];
-    manip.set_joint_angles(&angles).unwrap();
-    let mut scenes = HashMap::new();
-    for l in urdf_robo.links {
-        scenes.insert(l.name, add_geometry(&l.visual, &mut window));
-    }
-
-    let mut i = 0;
-    let mut t = 0.0;
-    while window.render() {
-        t += 0.1;
-        angles[i % dof] = t.sin();
-        if t > 6.28 {
-            i += 1;
-            t = 0.0;
-        }
-        manip.set_joint_angles(&angles).unwrap();
-        for (trans, link_name) in manip.calc_link_transforms().iter()
-            .zip(manip.linked_joints.iter().map(|lj| lj.name.clone())) {
-                match scenes.get_mut(&link_name) {
-                    Some(obj) => obj.set_local_transformation(trans.clone()),
-                    None => {
-                        println!("{} not found", link_name);
-                    }
-                }
-            }
-    }
 }
