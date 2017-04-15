@@ -6,13 +6,30 @@ extern crate alga;
 use alga::general::Real;
 use std::collections::HashMap;
 
-pub fn create_axis_from_vec3<T>(vec3: [f64; 3]) -> na::Unit<na::Vector3<T>>
+pub fn axis_from<T>(array3: [f64; 3]) -> na::Unit<na::Vector3<T>>
     where T: Real
 {
-    na::Unit::<_>::new_normalize(na::Vector3::new(na::convert(vec3[0]),
-                                                  na::convert(vec3[1]),
-                                                  na::convert(vec3[2])))
+    na::Unit::<_>::new_normalize(na::Vector3::new(na::convert(array3[0]),
+                                                  na::convert(array3[1]),
+                                                  na::convert(array3[2])))
 }
+
+pub fn quaternion_from<T>(array3: [f64; 3]) -> na::UnitQuaternion<T>
+    where T: Real
+{
+    na::UnitQuaternion::from_euler_angles(na::convert(array3[0]),
+                                          na::convert(array3[1]),
+                                          na::convert(array3[2]))
+}
+
+pub fn translation_from<T>(array3: [f64; 3]) -> na::Translation3<T>
+    where T: Real
+{
+    na::Translation3::new(na::convert(array3[0]),
+                          na::convert(array3[1]),
+                          na::convert(array3[2]))
+}
+
 
 pub fn create_linked_joint_from_urdf_joint<T>(joint: &urdf_rs::Joint) -> nk::LinkedJoint<T>
     where T: Real
@@ -21,18 +38,16 @@ pub fn create_linked_joint_from_urdf_joint<T>(joint: &urdf_rs::Joint) -> nk::Lin
         .joint(&joint.name,
                match joint.joint_type {
                    urdf_rs::JointType::Revolute => {
-                       nk::JointType::Rotational {
-                           axis: create_axis_from_vec3(joint.axis.xyz_as_array()),
-                       }
+                       nk::JointType::Rotational { axis: axis_from(joint.axis.xyz) }
                    }
                    urdf_rs::JointType::Prismatic => {
-                       nk::JointType::Linear {
-                           axis: create_axis_from_vec3(joint.axis.xyz_as_array()),
-                       }
+                       nk::JointType::Linear { axis: axis_from(joint.axis.xyz) }
                    }
                    _ => nk::JointType::Fixed,
                })
         .name(&joint.child.link)
+        .rotation(quaternion_from(joint.origin.rpy))
+        .translation(translation_from(joint.origin.xyz))
         .finalize()
 }
 
@@ -65,7 +80,8 @@ pub fn create_serial_linked_joints_vec<T>(robot: &urdf_rs::Robot) -> Vec<Vec<nk:
         link_map.remove(&joint.parent.link);
     }
     // link_map contains end links only here
-    link_map.keys()
+    link_map
+        .keys()
         .map(|end_name| {
                  get_joint_until_root(&end_name, &child_joint_map)
                      .iter()
