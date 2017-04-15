@@ -48,6 +48,12 @@ impl Error for JointError {
 }
 
 
+
+/// Robot representation with set of LinkedFrames
+///
+/// This contains multiple LinkedFrame.
+/// The frames must be serial without branch.
+/// root is the only link which has branch.
 #[derive(Debug)]
 pub struct RobotFrame<T: Real> {
     pub name: String,
@@ -99,9 +105,12 @@ pub trait KinematicChain<T>
 ///
 /// imagine below structure
 ///
-/// ```
-/// [transform] -> linked_joints([[joint] -> [Link]] -> [[joint] -> [Link]] -> ...)
-/// ```
+/// `[transform] -> linked_joints([[joint] -> [Link]] -> [[joint] -> [Link]] -> ...)`
+///
+/// The order must be ordered.
+///
+/// - start from root link
+/// - end with last link
 #[derive(Debug)]
 pub struct LinkedFrame<T: Real> {
     pub name: String,
@@ -168,7 +177,7 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
 
 /// Joint and Link
 ///
-/// [[joint] -> [Link]]
+/// `[[joint] -> [Link]]`
 #[derive(Debug)]
 pub struct LinkedJoint<T: Real> {
     pub name: String,
