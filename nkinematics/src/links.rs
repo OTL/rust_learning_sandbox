@@ -5,7 +5,7 @@ use na::{Isometry3, Vector3, Unit, UnitQuaternion, Translation3};
 use std::error::Error;
 use std::fmt;
 
-#[derive(Copy)]
+#[derive(Copy, Debug)]
 pub enum JointType<T: Real> {
     /// Fixed joitn
     Fixed,
@@ -48,6 +48,7 @@ impl Error for JointError {
 }
 
 
+#[derive(Debug)]
 pub struct RobotFrame<T: Real> {
     pub name: String,
     pub frames: Vec<LinkedFrame<T>>,
@@ -92,6 +93,7 @@ pub trait KinematicChain<T>
 /// ```
 /// [transform] -> linked_joints([[joint] -> [Link]] -> [[joint] -> [Link]] -> ...)
 /// ```
+#[derive(Debug)]
 pub struct LinkedFrame<T: Real> {
     pub name: String,
     pub linked_joints: Vec<LinkedJoint<T>>,
@@ -155,6 +157,7 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
 /// Joint and Link
 ///
 /// [[joint] -> [Link]]
+#[derive(Debug)]
 pub struct LinkedJoint<T: Real> {
     pub name: String,
     pub joint: Joint<T>,
@@ -194,7 +197,7 @@ impl<T> LinkedJoint<T>
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Range<T: Real> {
     pub min: T,
     pub max: T,
@@ -209,6 +212,7 @@ impl<T> Range<T>
 }
 
 /// Joint with type
+#[derive(Debug)]
 pub struct Joint<T: Real> {
     pub name: String,
     pub joint_type: JointType<T>,
@@ -281,7 +285,7 @@ impl<T> Joint<T>
 ///     .joint("link_pitch", nk::JointType::Rotational{axis: na::Vector3::y_axis()})
 ///     .finalize();
 /// ```
-
+#[derive(Debug)]
 pub struct LinkedJointBuilder<T: Real> {
     name: String,
     joint: Joint<T>,
