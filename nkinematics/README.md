@@ -5,7 +5,7 @@ Kinematics (forward/inverse) library using [nalgebra](http://nalgebra.org).
 It uses RobotFrame structure to handle joints and links.
 See examples/ for more details.
 
-Enjoy example!
+Enjoy example!!
 
 ![ik_sample](screenshot.png)
 
