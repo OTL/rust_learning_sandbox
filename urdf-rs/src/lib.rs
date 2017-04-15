@@ -94,6 +94,8 @@ pub struct Collision {
     pub geometry: Geometry,
 }
 
+/// Urdf Link element
+/// See http://wiki.ros.org/urdf/XML/link for more detail.
 #[derive(Debug, Deserialize)]
 pub struct Link {
     pub name: String,
@@ -157,24 +159,11 @@ pub struct Axis {
     pub xyz: [f64; 3]
 }
 
-pub fn array_from(string: &str) -> Result<[f64; 3], UrdfError> {
-    let vec = string.split(" ").filter_map(|x| x.parse::<f64>().ok()).collect::<Vec<_>>();
-    if vec.len() != 3 {
-        return Err(UrdfError::Parse(string.to_string()));
-    }
-    let mut arr = [0.0f64; 3];
-    for i in 0..3 {
-        arr[i] = vec[i];
-    }
-    Ok(arr)
-}
-
 impl Default for Axis {
     fn default() -> Axis {
         Axis { xyz: [1.0f64, 0.0, 0.0,] }
     }
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct Pose {
@@ -186,24 +175,13 @@ pub struct Pose {
     pub rpy: [f64; 3],
 }
 
-pub fn default_zero3() -> [f64; 3] {
+fn default_zero3() -> [f64; 3] {
     [0.0f64, 0.0, 0.0]
 }
 
-pub fn default_rgba() -> [f64; 4] {
+fn default_rgba() -> [f64; 4] {
     [1.0f64, 1.0, 1.0, 1.0]
 }
-
-/*
-impl Pose {
-    pub fn xyz_as_array(&self) -> Result<[f64; 3], UrdfError> {
-        array_from(&self.xyz)
-    }
-    pub fn rpy_as_array(&self) -> Result<[f64; 3], UrdfError> {
-        array_from(&self.rpy)
-    }
-}
- */
 
 impl Default for Pose {
     fn default() -> Pose {
@@ -255,6 +233,8 @@ pub struct SafetyController {
     k_velocity: f64,
 }
 
+/// Urdf Joint element
+/// See http://wiki.ros.org/urdf/XML/joint for more detail.
 #[derive(Debug, Deserialize)]
 pub struct Joint {
     pub name: String,
@@ -281,6 +261,7 @@ pub struct Dynamics {
     friction: f64,
 }
 
+/// Top level struct to access urdf.
 #[derive(Debug, Deserialize)]
 pub struct Robot {
     pub name: String,
@@ -337,12 +318,73 @@ impl From<serde_xml_rs::Error> for UrdfError {
     }
 }
 
+/// Read urdf file and create Robot instance
+///
+/// # Examples
+///
+/// ```
+/// extern crate urdf_rs;
+/// let urdf_robo = urdf_rs::read_file("sample.urdf").unwrap();
+/// let links = urdf_robo.links;
+/// ```
 pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Robot, UrdfError> {
     let mut file = File::open(path)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
     read_from_string(&contents)
 }
+
+
+/// Read from string instead of file.
+///
+///
+/// # Examples
+///
+/// ```
+/// let s = r##"
+///     <robot name="robo">
+///         <link name="shoulder1">
+///             <inertial>
+///                 <origin xyz="0 0 0.5" rpy="0 0 0"/>
+///                 <mass value="1"/>
+///                 <inertia ixx="100"  ixy="0"  ixz="0" iyy="100" iyz="0" izz="100" />
+///             </inertial>
+///             <visual>
+///                 <origin xyz="0.1 0.2 0.3" rpy="-0.1 -0.2  -0.3" />
+///                 <geometry>
+///                     <box size="1.0 2.0 3.0" />
+///                 </geometry>
+///                 <material name="Cyan">
+///                     <color rgba="0 1.0 1.0 1.0"/>
+///                 </material>
+///             </visual>
+///             <collision>
+///                 <origin xyz="0 0 0" rpy="0 0 0"/>
+///                 <geometry>
+///                     <cylinder radius="1" length="0.5"/>
+///                 </geometry>
+///             </collision>
+///         </link>
+///         <link name="elbow1" />
+///         <link name="wrist1" />
+///         <joint name="shoulder_pitch" type="revolute">
+///             <origin xyz="0.0 0.0 0.1" />
+///             <parent link="shoulder1" />
+///             <child link="elbow1" />
+///             <axis xyz="0 1 -1" />
+///             <limit lower="-1" upper="1.0" effort="0" velocity="1.0"/>
+///         </joint>
+///         <joint name="shoulder_pitch" type="revolute">
+///             <origin xyz="0.0 0.0 0.0" />
+///             <parent link="elbow1" />
+///             <child link="wrist1" />
+///             <axis xyz="0 1 0" />
+///             <limit lower="-2" upper="1.0" effort="0" velocity="1.0"/>
+///         </joint>
+///     </robot>
+///    "##;
+/// let robo = urdf_rs::read_from_string(s).unwrap();
+/// ```
 
 pub fn read_from_string(string: &str) -> Result<Robot, UrdfError> {
     serde_xml_rs::deserialize(string.as_bytes())
