@@ -1,0 +1,13 @@
+[package]
+name = "urdf-vis"
+version = "0.1.0"
+authors = ["Takashi Ogura <t.ogura@gmail.com>"]
+
+[dependencies]
+nalgebra = "0.11.0"
+alga = "0.5.1"
+kiss3d = "0.8.0"
+glfw = "0.8.0" # required by kiss3d
+urdf-rs = { path = "../urdf-rs" }
+nkinematics-urdf = { path = "../nkinematics-urdf" }
+nkinematics = { path = "../nkinematics" }
