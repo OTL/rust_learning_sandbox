@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate serde_derive;
+extern crate serde;
 extern crate serde_xml_rs;
 
 #[derive(Debug, Deserialize, Default)]
@@ -28,7 +29,11 @@ pub struct Inertial {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Geometry {
-    Box { size: String },
+    Box {
+        #[serde(with = "urdf_vec3")]
+        size: [f64; 3]
+        //size: String
+    },
     Cylinder { radius: f64, length: f64 },
     Sphere { radius: f64 },
     Mesh { filename: String, scale: f64 },
@@ -36,19 +41,15 @@ pub enum Geometry {
 
 impl Default for Geometry {
     fn default() -> Geometry {
-        Geometry::Box { size: "0 0 0".to_string() }
+        Geometry::Box { size: [0.0f64, 0.0, 0.0] }
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct Color {
-    pub rgba: String,
-}
-
-impl Default for Color {
-    fn default() -> Color {
-        Color { rgba: "0 0 0 0".to_string() }
-    }
+    #[serde(with = "urdf_vec4")]
+    #[serde(default="default_rgba")]
+    pub rgba: [f64; 4],
 }
 
 #[derive(Debug, Deserialize)]
@@ -104,55 +105,111 @@ pub struct Link {
     pub collision: Collision,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct Axis {
-    pub xyz: String,
+
+#[derive(Deserialize, Debug)]
+pub struct Vec3 {
+    #[serde(with = "urdf_vec3")]
+    pub data: [f64; 3]
 }
 
-fn parse_array_from_string(string: &str) -> [f64; 3] {
+mod urdf_vec3 {
+    use serde::{self, Deserialize, Deserializer};
+    pub fn deserialize<D>(deserializer: D) -> Result<[f64; 3], D::Error>
+    where D: Deserializer
+{
+        let s = String::deserialize(deserializer)?;
+        let vec = s.split(" ").filter_map(|x| x.parse::<f64>().ok()).collect::<Vec<_>>();
+        if vec.len() != 3 {
+            return Err(serde::de::Error::custom(
+                format!("failed to parse float array in {}", s)));
+        }
+        let mut arr = [0.0f64; 3];
+        for i in 0..3 {
+            arr[i] = vec[i];
+        }
+        Ok(arr)
+    }
+}
+
+mod urdf_vec4 {
+    use serde::{self, Deserialize, Deserializer};
+    pub fn deserialize<D>(deserializer: D) -> Result<[f64; 4], D::Error>
+    where D: Deserializer
+{
+        let s = String::deserialize(deserializer)?;
+        let vec = s.split(" ").filter_map(|x| x.parse::<f64>().ok()).collect::<Vec<_>>();
+        if vec.len() != 4 {
+            return Err(serde::de::Error::custom(
+                format!("failed to parse float array in {}", s)));
+        }
+        let mut arr = [0.0f64; 4];
+        for i in 0..4 {
+            arr[i] = vec[i];
+        }
+        Ok(arr)
+    }
+}
+
+
+#[derive(Debug, Deserialize)]
+pub struct Axis {
+    #[serde(with = "urdf_vec3")]
+    pub xyz: [f64; 3]
+}
+
+pub fn array_from(string: &str) -> Result<[f64; 3], UrdfError> {
     let vec = string.split(" ").filter_map(|x| x.parse::<f64>().ok()).collect::<Vec<_>>();
-    assert!(vec.len() == 3);
+    if vec.len() != 3 {
+        return Err(UrdfError::Parse(string.to_string()));
+    }
     let mut arr = [0.0f64; 3];
     for i in 0..3 {
         arr[i] = vec[i];
     }
-    arr
-}
-
-impl Axis {
-    pub fn xyz_as_array(&self) -> [f64; 3] {
-        parse_array_from_string(&self.xyz)
-    }
+    Ok(arr)
 }
 
 impl Default for Axis {
     fn default() -> Axis {
-        Axis { xyz: "1 0 0".to_string() }
+        Axis { xyz: [1.0f64, 0.0, 0.0,] }
     }
 }
+
 
 #[derive(Debug, Deserialize)]
 pub struct Pose {
-    #[serde(default)]
-    pub xyz: String,
-    #[serde(default)]
-    pub rpy: String,
+    #[serde(with = "urdf_vec3")]
+    #[serde(default="default_zero3")]
+    pub xyz: [f64; 3],
+    #[serde(with = "urdf_vec3")]
+    #[serde(default="default_zero3")]
+    pub rpy: [f64; 3],
 }
 
+pub fn default_zero3() -> [f64; 3] {
+    [0.0f64, 0.0, 0.0]
+}
+
+pub fn default_rgba() -> [f64; 4] {
+    [1.0f64, 1.0, 1.0, 1.0]
+}
+
+/*
 impl Pose {
-    pub fn xyz_as_array(&self) -> [f64; 3] {
-        parse_array_from_string(&self.xyz)
+    pub fn xyz_as_array(&self) -> Result<[f64; 3], UrdfError> {
+        array_from(&self.xyz)
     }
-    pub fn rpy_as_array(&self) -> [f64; 3] {
-        parse_array_from_string(&self.rpy)
+    pub fn rpy_as_array(&self) -> Result<[f64; 3], UrdfError> {
+        array_from(&self.rpy)
     }
 }
+ */
 
 impl Default for Pose {
     fn default() -> Pose {
         Pose {
-            xyz: "0 0 0".to_string(),
-            rpy: "0 0 0".to_string(),
+            xyz: default_zero3(),
+            rpy: default_zero3(),
         }
     }
 }
@@ -245,6 +302,7 @@ use std::fmt;
 pub enum UrdfError {
     File(std::io::Error),
     Xml(serde_xml_rs::Error),
+    Parse(String),
 }
 
 impl fmt::Display for UrdfError {
@@ -252,6 +310,7 @@ impl fmt::Display for UrdfError {
         match *self {
             UrdfError::File(ref err) => err.fmt(f),
             UrdfError::Xml(ref err) => err.fmt(f),
+            UrdfError::Parse(ref msg) => write!(f, "parse error {}", msg),
         }
     }
 }
@@ -261,6 +320,7 @@ impl Error for UrdfError {
         match *self {
             UrdfError::File(ref err) => err.description(),
             UrdfError::Xml(ref err) => err.description(),
+            UrdfError::Parse(_) => "parse error",
         }
     }
 }
@@ -302,7 +362,7 @@ fn it_works() {
                 <visual>
                     <origin xyz="0.1 0.2 0.3" rpy="-0.1 -0.2  -0.3" />
                     <geometry>
-                        <box size="1 1 1" />
+                        <box size="1.0 2.0 3.0" />
                     </geometry>
                     <material name="Cyan">
                         <color rgba="0 1.0 1.0 1.0"/>
@@ -325,7 +385,7 @@ fn it_works() {
                 <limit lower="-1" upper="1.0" effort="0" velocity="1.0"/>
             </joint>
             <joint name="shoulder_pitch" type="revolute">
-                <origin xyz="0.0, 0.0, 0.0" />
+                <origin xyz="0.0 0.0 0.0" />
                 <parent link="elbow1" />
                 <child link="wrist1" />
                 <axis xyz="0 1 0" />
@@ -338,17 +398,33 @@ fn it_works() {
     assert_eq!(robo.name, "robo");
     assert_eq!(robo.links.len(), 3);
     assert_eq!(robo.joints.len(), 2);
-    assert_eq!(robo.links[0].visual.origin.xyz_as_array()[0], 0.1);
-    assert_eq!(robo.links[0].visual.origin.xyz_as_array()[1], 0.2);
-    assert_eq!(robo.links[0].visual.origin.xyz_as_array()[2], 0.3);
-    assert_eq!(robo.links[0].visual.origin.rpy_as_array()[0], -0.1);
-    assert_eq!(robo.links[0].visual.origin.rpy_as_array()[1], -0.2);
-    assert_eq!(robo.links[0].visual.origin.rpy_as_array()[2], -0.3);
+    let xyz = robo.links[0].visual.origin.xyz;
+    assert_eq!(xyz[0], 0.1);
+    assert_eq!(xyz[1], 0.2);
+    assert_eq!(xyz[2], 0.3);
+    let rpy = robo.links[0].visual.origin.rpy;
+    assert_eq!(rpy[0], -0.1);
+    assert_eq!(rpy[1], -0.2);
+    assert_eq!(rpy[2], -0.3);
+
+    match robo.links[0].visual.geometry {
+        Geometry::Box{size} => {
+            assert_eq!(size[0], 1.0f64);
+            assert_eq!(size[1], 2.0f64);
+            assert_eq!(size[2], 3.0f64);
+        },
+        _ => { panic!("geometry error") },
+    }
 
     assert_eq!(robo.joints[0].name, "shoulder_pitch");
-    assert_eq!(robo.joints[0].axis.xyz, "0 1 -1");
-    assert_eq!(robo.joints[0].axis.xyz_as_array()[0], 0.0f64);
-    assert_eq!(robo.joints[0].axis.xyz_as_array()[1], 1.0f64);
-    assert_eq!(robo.joints[0].axis.xyz_as_array()[2], -1.0f64);
-    assert_eq!(robo.joints[0].origin.xyz, "0.0 0.0 0.1");
+    let xyz = robo.joints[0].axis.xyz;
+    assert_eq!(xyz[0], 0.0f64);
+    assert_eq!(xyz[1], 1.0f64);
+    assert_eq!(xyz[2], -1.0f64);
+    let xyz = robo.joints[0].axis.xyz;
+    //"0 1 -1"
+    assert_eq!(xyz[0], 0.0);
+    assert_eq!(xyz[1], 1.0);
+    assert_eq!(xyz[2], -1.0);
+
 }
