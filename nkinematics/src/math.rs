@@ -7,7 +7,7 @@ use na::allocator::Allocator;
 
 use na::storage::Storage;
 
-
+/// create 6 elements vector to show position and orientation
 pub fn to_euler_angles<T: Real>(q: &UnitQuaternion<T>) -> Vector3<T> {
     let x = q[0];
     let y = q[1];
@@ -36,7 +36,7 @@ pub fn to_euler_angles<T: Real>(q: &UnitQuaternion<T>) -> Vector3<T> {
     Vector3::new(roll, pitch, yaw)
 }
 
-
+/// Try to solve pseudo inverse
 pub fn try_pseudo_inverse<N, R, C, S>
     (matrix: &Matrix<N, R, C, S>)
      -> Option<Matrix<N, C, R, <S::Alloc as Allocator<N, C, R>>::Buffer>>
