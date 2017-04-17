@@ -41,7 +41,7 @@ mod test {
     }
 
     #[test]
-    #[rustfmt_skip]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn try_pseudo_inverse_65fail() {
         use super::*;
         let m = na::Matrix6x5::new(1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
@@ -53,7 +53,7 @@ mod test {
     }
 
     #[test]
-    #[rustfmt_skip]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn try_pseudo_inverse_56() {
         use super::*;
         let m = na::Matrix5x6::new(1.0, 1.0, 1.0, 1.0, 1.0,
