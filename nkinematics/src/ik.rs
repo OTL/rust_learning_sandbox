@@ -137,3 +137,51 @@ impl<T, K> InverseKinematicsSolver<T, K> for JacobianIKSolver<T, K>
         Err(IKError::NotConverged)
     }
 }
+
+
+/// Build jacobianIKSolverBuilder
+///
+/// This builder allow initialation of JacobianIKSolver
+/// without any parameters.
+///
+pub struct JacobianIKSolverBuilder<T, K>
+    where T: Real,
+          K: KinematicChain<T> {
+    pub jacobian_move_epsilon: T,
+    pub allowable_target_distance: T,
+    pub num_max_try: i32,
+    phantom: PhantomData<K>,
+}
+
+impl<T, K> JacobianIKSolverBuilder<T, K>
+    where T: Real,
+          K: KinematicChain<T> {
+    pub fn new() -> Self {
+        JacobianIKSolverBuilder {
+            jacobian_move_epsilon: na::convert(0.001),
+            allowable_target_distance:  na::convert(0.001),
+            num_max_try: 100,
+            phantom: PhantomData::<K>,
+        }
+    }
+    pub fn jacobian_move_epsilon(&mut self, jacobian_epsilon: T) -> &mut Self {
+        self.jacobian_move_epsilon = jacobian_epsilon;
+        self
+    }
+    pub fn allowable_target_distance(&mut self, allowable_diff: T) -> &mut Self {
+        self.allowable_target_distance = allowable_diff;
+        self
+    }
+    pub fn num_max_try(&mut self, max_try: i32) -> &mut Self {
+        self.num_max_try = max_try;
+        self
+    }
+    pub fn finalize(&self) -> JacobianIKSolver<T, K> {
+        JacobianIKSolver {
+            jacobian_move_epsilon: self.jacobian_move_epsilon,
+            allowable_target_distance: self.allowable_target_distance,
+            num_max_try: self.num_max_try,
+            phantom: self.phantom,
+        }
+    }
+}

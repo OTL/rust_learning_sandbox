@@ -12,9 +12,10 @@
 //! extern crate nalgebra;
 //!
 //! use nkinematics::{LinkedFrame, LinkedJointBuilder, JointType,
-//!                   KinematicChain, JacobianIKSolver,
+//!                   KinematicChain, JacobianIKSolverBuilder,
 //!                   InverseKinematicsSolver};
 //! use nalgebra::{Vector3, Translation3};
+//!
 //! fn main() {
 //!   let l0 = LinkedJointBuilder::new()
 //!       .name("shoulder_link1")
@@ -65,13 +66,14 @@
 //!   // get the transform of the end of the manipulator (forward kinematics)
 //!   let mut target = arm.calc_end_transform();
 //!   target.translation.vector[2] += 0.1;
-//!   let solver = JacobianIKSolver::new(0.001, 0.001, 100);
+//!   let solver = JacobianIKSolverBuilder::new().finalize();
 //!   // solve and move the manipulator angles
 //!   solver.solve(&mut arm, &target)
 //!         .unwrap_or_else(|err| {
 //!                               println!("Err: {}", err);
 //!                               0.0f32
 //!                               });
+//!   println!("angles={:?}", arm.get_joint_angles());
 //! }
 //! ```
 

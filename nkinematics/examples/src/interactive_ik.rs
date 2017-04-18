@@ -120,7 +120,7 @@ fn main() {
     let at = Point3::new(0.0f32, 0.0, 0.0);
     let mut arc_ball = ArcBall::new(eye, at);
 
-    let solver = JacobianIKSolver::new(0.001, 0.001, 100);
+    let solver = JacobianIKSolverBuilder::new().finalize();
     let _ = create_ground(&mut window);
 
     while window.render_with_camera(&mut arc_ball) {
