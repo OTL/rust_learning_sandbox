@@ -85,7 +85,7 @@ impl<T> RobotFrame<T>
     pub fn set_transform(&mut self, transform: Isometry3<T>) {
         self.transform = transform;
         for frame in self.frames.iter_mut() {
-            frame.transform = self.transform * frame.transform;
+            frame.transform = self.transform.clone();
         }
     }
     pub fn get_transform(&self) -> Isometry3<T> {
@@ -177,7 +177,6 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
 
 /// Joint and Link
 ///
-/// `[[joint] -> [Link]]`
 #[derive(Debug)]
 pub struct LinkedJoint<T: Real> {
     pub name: String,
@@ -202,7 +201,7 @@ impl<T> LinkedJoint<T>
         &self.joint.name
     }
     pub fn calc_transform(&self) -> Isometry3<T> {
-        self.joint.calc_transform() * self.transform
+        self.transform * self.joint.calc_transform()
     }
     pub fn set_joint_angle(&mut self, angle: T) -> Result<(), JointError> {
         self.joint.set_angle(angle)
