@@ -64,6 +64,21 @@ fn get_joint_until_root<'a, 'b>(end_name: &'a str,
     ret
 }
 
+pub fn get_root_link_name(robot: &urdf_rs::Robot) -> String {
+    let mut child_joint_map = HashMap::<&str, &urdf_rs::Joint>::new();
+    for j in robot.joints.iter() {
+        match child_joint_map.insert(&j.child.link, j) {
+            Some(old) => println!("old {:?} found", old),
+            None => {}
+        }
+    }
+    let mut parent_link_name: &str = &robot.links[0].name;
+    while let Some(joint) = child_joint_map.get(&parent_link_name) {
+        parent_link_name = &joint.parent.link;
+    }
+    parent_link_name.to_string()
+}
+
 pub fn create_robot<T>(robot: &urdf_rs::Robot) -> nk::RobotFrame<T>
     where T: Real
 {
@@ -82,6 +97,7 @@ pub fn create_robot<T>(robot: &urdf_rs::Robot) -> nk::RobotFrame<T>
             None => {}
         }
     }
+
     for joint in robot.joints.iter() {
         link_map.remove(&joint.parent.link);
     }
@@ -110,4 +126,6 @@ fn it_works() {
     assert_eq!(rf.frames.len(), 2);
     assert_eq!(rf.frames[0].len(), 6);
     assert_eq!(rf.frames[1].len(), 6);
+
+    assert_eq!(get_root_link_name(&robo), "root".to_string());
 }

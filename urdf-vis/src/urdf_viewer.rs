@@ -20,32 +20,26 @@ fn main() {
     }
     let mut window = Window::new("urdf_viewer");
     window.set_light(Light::StickToCamera);
-    let urdf_robo;
-    match urdf_rs::read_file(&args[1]) {
-        Ok(urdf) => urdf_robo = urdf,
-        Err(_) => {
-            println!("failed to load {}", args[1]);
-            std::process::exit(2);
-        }
-    }
+    let urdf_robo = urdf_rs::read_file(&args[1]).unwrap();
     let mut robot = nk_urdf::create_robot::<f32>(&urdf_robo);
     let base_transform = na::Isometry3::from_parts(na::Translation3::new(0.0, 0.0, 0.0),
                                                    na::UnitQuaternion::from_euler_angles(0.0, -1.57, -1.57));
     robot.set_transform(base_transform);
+    let root_name = nk_urdf::get_root_link_name(&urdf_robo);
     let mut scenes = HashMap::new();
     for l in urdf_robo.links {
         scenes.insert(l.name, urdf_vis::add_geometry(&l.visual, &mut window));
     }
 
     // TODO: set root link transform without defined name "root"
-    match scenes.get_mut("root") {
+    match scenes.get_mut(&root_name) {
         Some(obj) => obj.set_local_transformation(robot.get_transform()),
         None => { println!("root not found") },
     }
 
     let mut angles_vec = Vec::new();
     for i in 0..robot.frames.len() {
-        let dof = robot.frames[i].linked_joints.len();
+        let dof = robot.frames[i].get_joint_angles().len();
         angles_vec.push(vec![0.0f32; dof]);
     }
 
