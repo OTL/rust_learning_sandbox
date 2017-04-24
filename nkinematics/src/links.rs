@@ -5,7 +5,7 @@ use na::{Isometry3, Vector3, Unit, UnitQuaternion, Translation3};
 use std::error::Error;
 use std::fmt;
 
-#[derive(Copy, Debug)]
+#[derive(Copy, Debug, Clone)]
 pub enum JointType<T: Real> {
     /// Fixed joitn
     Fixed,
@@ -15,15 +15,7 @@ pub enum JointType<T: Real> {
     Linear { axis: Unit<Vector3<T>> },
 }
 
-impl<T> Clone for JointType<T>
-    where T: Real
-{
-    fn clone(&self) -> JointType<T> {
-        *self
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum JointError {
     OutOfLimit,
     SizeMisMatch,
@@ -54,7 +46,7 @@ impl Error for JointError {
 /// This contains multiple LinkedFrame.
 /// The frames must be serial without branch.
 /// root is the only link which has branch.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RobotFrame<T: Real> {
     pub name: String,
     pub frames: Vec<LinkedFrame<T>>,
@@ -85,7 +77,7 @@ impl<T> RobotFrame<T>
     pub fn set_transform(&mut self, transform: Isometry3<T>) {
         self.transform = transform;
         for frame in self.frames.iter_mut() {
-            frame.transform = self.transform.clone();
+            frame.transform = self.transform * frame.transform;
         }
     }
     pub fn get_transform(&self) -> Isometry3<T> {
@@ -111,7 +103,7 @@ pub trait KinematicChain<T>
 ///
 /// - start from root link
 /// - end with last link
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinkedFrame<T: Real> {
     pub name: String,
     pub linked_joints: Vec<LinkedJoint<T>>,
@@ -177,7 +169,7 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
 
 /// Joint and Link
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinkedJoint<T: Real> {
     pub name: String,
     pub joint: Joint<T>,
@@ -232,7 +224,7 @@ impl<T> Range<T>
 }
 
 /// Joint with type
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Joint<T: Real> {
     pub name: String,
     pub joint_type: JointType<T>,
@@ -304,8 +296,9 @@ impl<T> Joint<T>
 ///     .translation(na::Translation3::new(0.0, 0.1, 0.0))
 ///     .joint("link_pitch", nk::JointType::Rotational{axis: na::Vector3::y_axis()})
 ///     .finalize();
+/// println!("{:?}", l0);
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinkedJointBuilder<T: Real> {
     name: String,
     joint: Joint<T>,
