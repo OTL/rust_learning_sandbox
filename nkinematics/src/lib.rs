@@ -83,9 +83,11 @@ extern crate nalgebra as na;
 mod links;
 mod ik;
 mod math;
-mod tree;
+//mod tree;
+mod rctree;
 
 pub use self::links::*;
 pub use self::ik::*;
 pub use self::math::*;
-pub use self::tree::*;
+//pub use self::tree::*;
+pub use self::rctree::*;
