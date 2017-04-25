@@ -1,6 +1,7 @@
 extern crate nalgebra as na;
 
 use alga::general::Real;
+use na::Isometry3;
 use links::*;
 
 use std::collections::HashMap;
@@ -9,6 +10,8 @@ use std::collections::HashMap;
 pub struct KinematicTree<T: Real> {
     pub linked_joints: HashMap<String, LinkedJointNode<T>>,
     link_relations: Vec<(String, String)>,
+    is_finalized: bool,
+    root: String,
 }
 
 impl<T> KinematicTree<T> where T: Real {
@@ -16,6 +19,8 @@ impl<T> KinematicTree<T> where T: Real {
         KinematicTree {
             linked_joints: HashMap::new(),
             link_relations: Vec::new(),
+            is_finalized: false,
+            root: "".to_string(),
         }
     }
     pub fn add_link(mut self, parent_name: Option<String>,
@@ -31,6 +36,7 @@ impl<T> KinematicTree<T> where T: Real {
                 parent: parent_name,
                 children: Vec::new(),
                 linked_joint: linked_joint,
+                world_transform: Isometry3::identity(),
             });
         self
     }
@@ -58,28 +64,62 @@ impl<T> KinematicTree<T> where T: Real {
         ret.reverse();
         Some(ret)
     }
-    pub fn descendants(&self, name: &str) -> Vec<String> {
+    pub fn all_descendants<K, F>(&self, func: &F) -> Vec<K>
+        where F: Fn(&LinkedJointNode<T>) -> K {
+        self.descendants(&self.root, func)
+    }
+    pub fn descendants<K, F>(&self, name: &str, func: &F) -> Vec<K>
+        where F: Fn(&LinkedJointNode<T>) -> K {
         let mut ret = Vec::new();
-        ret.push(name.to_string());
-        self.descendants_internal(name, &mut ret);
+        self.descendants_internal(name, func, &mut ret);
         ret
     }
-    pub fn descendants_internal(&self, name: &str, ret: &mut Vec<String>) {
+    pub fn descendants_internal<K, F>(&self, name: &str, func: &F, ret: &mut Vec<K>)
+        where F: Fn(&LinkedJointNode<T>) -> K {
         match self.get(name) {
             None => {},
             Some(node) => {
+                ret.push(func(node));
                 for child in &node.children {
-                    ret.push(child.clone());
-                    self.descendants_internal(&child, ret);
+                    self.descendants_internal(&child, func, ret);
                 }
             }
         };
     }
+
+    pub fn all_descendants_mut<K, F>(&mut self, func: &F) -> Vec<K>
+        where F: FnMut(&mut LinkedJointNode<T>) -> K {
+        self.descendants_mut(&self.root, func)
+    }
+    pub fn descendants_mut<K, F>(&mut self, name: &str, func: &F) -> Vec<K>
+        where F: FnMut(&mut LinkedJointNode<T>) -> K {
+        let mut ret = Vec::new();
+        self.descendants_internal_mut(name, func, &mut ret);
+        ret
+    }
+    pub fn descendants_internal_mut<K, F>(&mut self, name: &str, func: &F, ret: &mut Vec<K>)
+        where F: FnMut(&mut LinkedJointNode<T>) -> K {
+        match self.get_mut(name) {
+            None => {},
+            Some(node) => {
+                ret.push(func(node));
+                for child in &node.children {
+                    self.descendants_internal_mut(&child, func, ret);
+                }
+            }
+        };
+    }
+
     pub fn finalize(mut self) -> Self {
         for iter in self.link_relations.iter() {
             self.linked_joints.get_mut(&iter.0).unwrap()
                 .children.push(iter.1.clone());
         }
+        self.is_finalized = true;
+        let mut roots = self.get_roots();
+        // root must be 1
+        assert_eq!(roots.len(), 1);
+        self.root = roots.pop().unwrap();
         self
     }
     pub fn get(&self, name: &str) -> Option<&LinkedJointNode<T>> {
@@ -88,6 +128,8 @@ impl<T> KinematicTree<T> where T: Real {
     pub fn get_mut(&mut self, name: &str) -> Option<&mut LinkedJointNode<T>> {
         self.linked_joints.get_mut(name)
     }
+//    pub fn calc_descendants_transformations(&self, name: &str) -> Vec<Isometry3> {
+//    }
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +137,7 @@ pub struct LinkedJointNode<T: Real> {
     pub parent: Option<String>,
     pub children: Vec<String>,
     pub linked_joint: LinkedJoint<T>,
+    pub world_transform: Isometry3<T>,
 }
 
 impl<T> LinkedJointNode<T> where T: Real {
@@ -143,11 +186,11 @@ fn it_works() {
         .add_link(Some("j2".to_string()), l4)
         .add_link(Some("j3".to_string()), l5)
         .finalize();
-    println!("{:?}", tree.descendants("j0"));
-    println!("{:?}", tree.descendants("j3"));
-    println!("{:?}", tree.get("j1").unwrap());
-    println!("roots={:?}", tree.get_roots());
-    let all_names = tree.get_roots().iter().flat_map(|root| tree.descendants(root)).collect::<Vec<_>>();
+    println!("j0->{:?}", tree.descendants("j0", &|ljn| ljn.get_name().to_string()));
+    println!("j3->{:?}", tree.descendants("j3", &|ljn| ljn.get_name().to_string()));
+    println!("j1={:?}", tree.get("j1").unwrap());
+    println!("root={:?}", tree.root);
+    let all_names = tree.all_descendants(&|ljn| ljn.get_name().to_string());
     assert_eq!(all_names.len(), 6);
     println!("all = {:?}", all_names);
     let link_vec = tree.create_link_vec("j0", "j4").unwrap();
@@ -155,16 +198,15 @@ fn it_works() {
     println!("{:?}", link_vec);
     println!("{:?}", tree.get("j0").unwrap().children);
     tree.get_mut("j0").unwrap().linked_joint.set_joint_angle(1.0).unwrap();
-    let angles = tree.get_roots().iter().flat_map(|root| tree.descendants(root)).filter_map(|name| tree.get(&name).unwrap().linked_joint.get_joint_angle()).collect::<Vec<_>>();
-    println!("{:?}", angles);
-
+    let all_poses = tree.all_descendants_mut(
+        &|mut ljn|
+        ljn.world_transform =
+            match ljn.parent {
+                None => Isometry3::identity(), // root
+                Some(ref parent_name) => tree.get(parent_name).unwrap().world_transform
+            } * ljn.linked_joint.calc_transform());
+    println!("poses = {:?}", all_poses);
+//    let angles = tree.all_descendants().iter().filter_map(|name| tree.get(&name).unwrap().linked_joint.get_joint_angle()).collect::<Vec<_>>();
+//    println!("{:?}", angles);
     // update transform
-/*
-    let mut poses = tree.get_roots().iter().map(|root| tree.descendants(root)).map(|name| tree.get(&name).unwrap().linked_joint)
-        .scan(self.transform, |base, ref lj| {
-            *base *= lj.calc_transform();
-            Some(*base)
-        })
-        .collect()
-*/
-}
+    }
