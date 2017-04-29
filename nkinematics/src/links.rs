@@ -146,6 +146,7 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
 
     /// if failed, joints angles are non determined,
     fn set_joint_angles(&mut self, angles: &Vec<T>) -> Result<(), JointError> {
+        // TODO: is it possible to cache the joint_with_angle to speed up?
         let mut joints_with_angle = self.linked_joints
             .iter_mut()
             .filter(|ref lj| lj.has_joint_angle())
