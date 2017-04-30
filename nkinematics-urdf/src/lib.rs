@@ -40,6 +40,9 @@ pub fn create_linked_joint_from_urdf_joint<T>(joint: &urdf_rs::Joint) -> nk::Lin
                    urdf_rs::JointType::Revolute => {
                        nk::JointType::Rotational { axis: axis_from(joint.axis.xyz) }
                    }
+                   urdf_rs::JointType::Continuous => {
+                       nk::JointType::Rotational { axis: axis_from(joint.axis.xyz) }
+                   }
                    urdf_rs::JointType::Prismatic => {
                        nk::JointType::Linear { axis: axis_from(joint.axis.xyz) }
                    }
@@ -116,6 +119,55 @@ pub fn create_robot<T>(robot: &urdf_rs::Robot) -> nk::RobotFrame<T>
             .collect())
 }
 
+pub fn create_tree<T>(robot: &urdf_rs::Robot) -> nk::LinkedJointTree<T>
+    where T: Real {
+    let root_name = get_root_link_name(robot);
+    let mut ref_nodes = Vec::new();
+    let mut child_ref_map = HashMap::new();
+    let mut parent_ref_map = HashMap::<&String, Vec<nk::RefLinkedJointNode<T>>>::new();
+
+    let root_node = nk::create_ref_node(
+        nk::LinkedJointBuilder::<T>::new()
+            .joint("root", nk::JointType::Fixed)
+            .name(&root_name)
+            .finalize());
+    for j in robot.joints.iter() {
+        let node = nk::create_ref_node(create_linked_joint_from_urdf_joint(j));
+        child_ref_map.insert(&j.child.link, node.clone());
+        if parent_ref_map.get(&j.parent.link).is_some() {
+            parent_ref_map.get_mut(&j.parent.link).unwrap().push(node.clone());
+        } else {
+            parent_ref_map.insert(&j.parent.link, vec![node.clone()]);
+        }
+        ref_nodes.push(node);
+    }
+    for l in robot.links.iter() {
+        println!("link={}", l.name);
+        if let Some(parent_node) = child_ref_map.get(&l.name) {
+            if let Some(child_nodes) = parent_ref_map.get(&l.name) {
+                for child_node in child_nodes.iter() {
+                    println!("set paremt = {}, child = {}",
+                             parent_node.borrow().data.get_joint_name(),
+                             child_node.borrow().data.get_joint_name());
+                    nk::set_parent_child(&parent_node, &child_node);
+                }
+            }
+        }
+    }
+    // set root as parent of root joint nodes
+    let root_joint_nodes = ref_nodes
+        .iter()
+        .filter_map(|ref_node| match ref_node.borrow().parent {
+            None => Some(ref_node),
+            Some(_) => None,
+        });
+    for rjn in root_joint_nodes {
+        nk::set_parent_child(&root_node, &rjn);
+    }
+    // create root node..
+    nk::LinkedJointTree::new(&robot.name, root_node)
+}
+
 #[test]
 fn it_works() {
     let robo = urdf_rs::read_file("sample.urdf").unwrap();
@@ -128,4 +180,14 @@ fn it_works() {
     assert_eq!(rf.frames[1].len(), 6);
 
     assert_eq!(get_root_link_name(&robo), "root".to_string());
+}
+
+#[test]
+fn test_tree() {
+    let robo = urdf_rs::read_file("sample.urdf").unwrap();
+    assert_eq!(robo.name, "robo");
+    assert_eq!(robo.links.len(), 1 + 6 + 6);
+
+    let tree = create_tree::<f32>(&robo);
+    assert_eq!(tree.map(&|ref_joint| ref_joint.clone()).len(), 13);
 }
