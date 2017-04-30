@@ -132,26 +132,14 @@ fn main() {
                             // reset
                             arm.set_joint_angles(&angles).unwrap();
                             target = arm.calc_end_transform();
-                        }
-                        Key::F => {
-                            target.translation.vector[2] += 0.1;
-                        }
-                        Key::B => {
-                            target.translation.vector[2] -= 0.1;
-                        }
-                        Key::R => {
-                            target.translation.vector[0] -= 0.1;
-                        }
-                        Key::L => {
-                            target.translation.vector[0] += 0.1;
-                        }
-                        Key::P => {
-                            target.translation.vector[1] += 0.1;
-                        }
-                        Key::N => {
-                            target.translation.vector[1] -= 0.1;
-                        }
-                        _ => {}
+                        },
+                        Key::F => target.translation.vector[2] += 0.1,
+                        Key::B => target.translation.vector[2] -= 0.1,
+                        Key::R => target.translation.vector[0] -= 0.1,
+                        Key::L => target.translation.vector[0] += 0.1,
+                        Key::P => target.translation.vector[1] += 0.1,
+                        Key::N => target.translation.vector[1] -= 0.1,
+                        _ => {},
                     }
                     event.inhibited = true // override the default keyboard handler
                 }
