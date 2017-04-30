@@ -23,10 +23,12 @@ pub fn add_geometry(visual: &urdf_rs::Visual, window: &mut Window)
             window.add_sphere(radius as f32)
         },
         urdf_rs::Geometry::Mesh{ref filename, scale} => {
+            let filename = filename.trim_left_matches("package://");
             let path = Path::new(&filename);
             let mtl_path = Path::new("");
+            assert!(path.exists(), "{} not found", filename);
             window.add_obj(&path, &mtl_path,
-                           na::Vector3::new(scale as f32, scale as f32, scale as f32))
+                           na::Vector3::new(scale[0] as f32, scale[1] as f32, scale[2] as f32))
         }
     };
     let rgba = &visual.material.color.rgba;

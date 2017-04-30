@@ -5,6 +5,7 @@ use na::{Isometry3, Vector3, Unit, UnitQuaternion, Translation3};
 use std::error::Error;
 use std::fmt;
 
+
 #[derive(Copy, Debug, Clone)]
 pub enum JointType<T: Real> {
     /// Fixed joitn
@@ -146,6 +147,7 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
 
     /// if failed, joints angles are non determined,
     fn set_joint_angles(&mut self, angles: &Vec<T>) -> Result<(), JointError> {
+        // TODO: is it possible to cache the joint_with_angle to speed up?
         let mut joints_with_angle = self.linked_joints
             .iter_mut()
             .filter(|ref lj| lj.has_joint_angle())
@@ -172,8 +174,12 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
 #[derive(Debug, Clone)]
 pub struct LinkedJoint<T: Real> {
     pub name: String,
+    /// joint instance
     pub joint: Joint<T>,
+    /// local transfrom of joint
     pub transform: Isometry3<T>,
+    /// cache of world transform
+    pub world_transform_cache: Option<Isometry3<T>>,
 }
 
 impl<T> LinkedJoint<T>
@@ -187,6 +193,7 @@ impl<T> LinkedJoint<T>
             name: name.to_string(),
             joint: joint,
             transform: Isometry3::identity(),
+            world_transform_cache: None,
         }
     }
     pub fn get_joint_name(&self) -> &str {
@@ -340,6 +347,7 @@ impl<T> LinkedJointBuilder<T>
             name: self.name,
             joint: self.joint,
             transform: self.transform,
+            world_transform_cache: None,
         }
     }
 }
