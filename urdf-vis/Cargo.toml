@@ -8,7 +8,7 @@ nalgebra = "0.11.0"
 alga = "0.5.1"
 kiss3d = "0.8.0"
 glfw = "0.8.0" # required by kiss3d
-urdf-rs = "0.1.3"
+urdf-rs = "0.1.4"
 nkinematics-urdf = { path = "../nkinematics-urdf" }
 nkinematics = { path = "../nkinematics" }
 

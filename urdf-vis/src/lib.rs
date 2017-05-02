@@ -9,6 +9,16 @@ extern crate alga;
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
 use std::path::Path;
+use std::process::Command;
+
+fn convert_to_obj_file(filename: &Path, new_path: &Path) {
+    let output = Command::new("assimp")
+        .args(&["export", filename.to_str().unwrap(), new_path.to_str().unwrap()])
+        .output()
+        .expect("failed to execute assimp. install assimp command by apt-get install assimp-utils");
+    println!("converting {:?} to {:?}", filename, new_path);
+    println!("{:?}", output);
+}
 
 pub fn add_geometry(visual: &urdf_rs::Visual, window: &mut Window)
                     -> SceneNode {
@@ -27,7 +37,11 @@ pub fn add_geometry(visual: &urdf_rs::Visual, window: &mut Window)
             let path = Path::new(&filename);
             let mtl_path = Path::new("");
             assert!(path.exists(), "{} not found", filename);
-            window.add_obj(&path, &mtl_path,
+            let new_path = path.with_extension("obj");
+            if !new_path.exists() {
+                convert_to_obj_file(&path, &new_path);
+            }
+            window.add_obj(&new_path, &mtl_path,
                            na::Vector3::new(scale[0] as f32, scale[1] as f32, scale[2] as f32))
         }
     };
