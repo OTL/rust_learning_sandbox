@@ -3,6 +3,9 @@ extern crate nkinematics as nk;
 extern crate urdf_rs;
 extern crate alga;
 
+#[macro_use]
+extern crate log;
+
 use alga::general::Real;
 use std::collections::HashMap;
 
@@ -71,7 +74,7 @@ pub fn get_root_link_name(robot: &urdf_rs::Robot) -> String {
     let mut child_joint_map = HashMap::<&str, &urdf_rs::Joint>::new();
     for j in robot.joints.iter() {
         match child_joint_map.insert(&j.child.link, j) {
-            Some(old) => println!("old {:?} found", old),
+            Some(old) => warn!("old {:?} found", old),
             None => {}
         }
     }
@@ -89,14 +92,14 @@ pub fn create_robot<T>(robot: &urdf_rs::Robot) -> nk::RobotFrame<T>
     let mut link_map = HashMap::new();
     for l in robot.links.iter() {
         match link_map.insert(&l.name, l) {
-            Some(old) => println!("old {:?} found", old),
+            Some(old) => warn!("old {:?} found", old),
             None => {}
         }
     }
     let mut child_joint_map = HashMap::<&str, &urdf_rs::Joint>::new();
     for j in robot.joints.iter() {
         match child_joint_map.insert(&j.child.link, j) {
-            Some(old) => println!("old {:?} found", old),
+            Some(old) => warn!("old {:?} found", old),
             None => {}
         }
     }
@@ -142,11 +145,11 @@ pub fn create_tree<T>(robot: &urdf_rs::Robot) -> nk::LinkedJointTree<T>
         ref_nodes.push(node);
     }
     for l in robot.links.iter() {
-        println!("link={}", l.name);
+        info!("link={}", l.name);
         if let Some(parent_node) = child_ref_map.get(&l.name) {
             if let Some(child_nodes) = parent_ref_map.get(&l.name) {
                 for child_node in child_nodes.iter() {
-                    println!("set paremt = {}, child = {}",
+                    info!("set paremt = {}, child = {}",
                              parent_node.borrow().data.get_joint_name(),
                              child_node.borrow().data.get_joint_name());
                     nk::set_parent_child(&parent_node, &child_node);

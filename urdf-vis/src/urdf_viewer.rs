@@ -1,4 +1,5 @@
 extern crate alga;
+extern crate env_logger;
 extern crate glfw;
 extern crate kiss3d;
 extern crate nalgebra as na;
@@ -7,28 +8,47 @@ extern crate nkinematics_urdf as nk_urdf;
 extern crate urdf_rs;
 extern crate urdf_vis;
 
+use glfw::{Action, WindowEvent, Key};
+use kiss3d::camera::ArcBall;
 use kiss3d::light::Light;
 use kiss3d::window::Window;
 use std::collections::HashMap;
-use glfw::{Action, WindowEvent, Key};
+use std::path::Path;
 
 fn main() {
+    env_logger::init().unwrap();
+
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
-        println!("Usage: {} URDF_FILE", args[0]);
+        println!("Usage: {} URDF_FILE or XACRO_FILE", args[0]);
         std::process::exit(1);
     }
     let mut window = Window::new("urdf_viewer");
     window.set_light(Light::StickToCamera);
-    let urdf_robo = urdf_rs::read_file(&args[1]).unwrap();
+    let eye = na::Point3::new(0.5f32, 1.0, -2.0);
+    let at = na::Point3::new(0.0f32, 0.5, 0.0);
+    let mut arc_ball = ArcBall::new(eye, at);
+
+    let input_path = Path::new(&args[1]);
+    let urdf_file_path;
+    let urdf_path;
+    if input_path.extension().unwrap() == "xacro" {
+        urdf_file_path = format!("/tmp/urdf_vis/{}",
+                                 &input_path.with_extension("urdf").to_str().unwrap());
+        urdf_path = Path::new(&urdf_file_path);
+        urdf_vis::convert_xacro_to_urdf(&input_path, &urdf_path).unwrap();
+    } else {
+        urdf_path = Path::new(&args[1]);
+    }
+    let urdf_robo = urdf_rs::read_file(&urdf_path).unwrap();
     let robot = nk_urdf::create_tree::<f32>(&urdf_robo);
     let base_transform = na::Isometry3::from_parts(na::Translation3::new(0.0, 0.0, 0.0),
-                                                   na::UnitQuaternion::from_euler_angles(0.0, -1.57, -1.57));
+                                                   na::UnitQuaternion::from_euler_angles(0.0, 1.57, 1.57));
     robot.root_link.borrow_mut().data.transform = base_transform;
 
     let mut scenes = HashMap::new();
     for l in urdf_robo.links {
-        scenes.insert(l.name, urdf_vis::add_geometry(&l.visual, &mut window));
+        scenes.insert(l.name, urdf_vis::add_geometry(&l.visual, &mut window).unwrap());
     }
 
     let dof = robot
@@ -37,7 +57,7 @@ fn main() {
 
     let mut angles_vec = vec![0.0f32; dof];
     let mut j = 0;
-    while window.render() {
+    while window.render_with_camera(&mut arc_ball) {
         for mut event in window.events().iter() {
             match event.value {
                 WindowEvent::Key(code, _, Action::Press, _) => {
