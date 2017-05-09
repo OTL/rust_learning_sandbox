@@ -85,9 +85,9 @@ fn test() {
     set_parent_child(&n2, &n6);
     set_parent_child(&n6, &n7);
     assert_eq!(map_descendants(&n0, &|ref_node| ref_node.borrow().data),
-               vec!(0, 1, 2, 3, 4, 5, 6, 7));
+               vec![0, 1, 2, 3, 4, 5, 6, 7]);
     assert_eq!(map_descendants(&n6, &|ref_node| ref_node.borrow().data),
-               vec!(6, 7));
+               vec![6, 7]);
     assert_eq!(map_ancestors(&n7, &|ref_node| ref_node.borrow().data),
-               vec!(7, 6, 2, 1, 0));
+               vec![7, 6, 2, 1, 0]);
 }

@@ -81,7 +81,7 @@ impl<T: Real> LinkedJointTree<T> {
                         Some(trans) => trans,
                         None => Isometry3::identity(),
                     }
-                },
+                }
                 None => Isometry3::identity(),
             };
             let trans = parent_transform * ljn.borrow().data.calc_transform();
@@ -152,7 +152,7 @@ fn it_works() {
                 .translation
                 .vector
                 .z
-        },
+        }
         None => {
             ljn.borrow()
                 .data
@@ -160,7 +160,7 @@ fn it_works() {
                 .translation
                 .vector
                 .z
-        },
+        }
     };
 
     let poses = map_descendants(&ljn0, &get_z);
