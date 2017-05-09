@@ -17,18 +17,36 @@ use kiss3d::window::Window;
 use std::collections::HashMap;
 use std::path::Path;
 
+#[cfg(target_os = "macos")]
+static NATIVE_MOD: glfw::Modifiers = glfw::Super;
+
+#[cfg(not(target_os = "macos"))]
+static NATIVE_MOD: glfw::Modifiers = glfw::Control;
+
+fn move_ang(index: usize, rot: f32, angles_vec: &mut Vec<f32>) {
+    if index == 0 {
+        for ang in angles_vec.iter_mut() {
+            *ang += rot;
+        }
+    } else {
+        let dof = angles_vec.len();
+        angles_vec[index % dof] += rot;
+    }
+}
+
+
 fn main() {
     env_logger::init().unwrap();
     let matches = App::new("urdf_viewer")
         .author("Takashi Ogura <t.ogura@gmail.com>")
         .about("Show and move urdf robot model for debuging")
         .arg(Arg::with_name("input")
-             .help("input urdf or xacro file")
-             .required(true))
+                 .help("input urdf or xacro file")
+                 .required(true))
         .arg(Arg::with_name("assimp")
-             .short("a")
-             .long("assimp")
-             .help("Use assimp instead of meshlab to convert .dae to .obj for visualization"))
+                 .short("a")
+                 .long("assimp")
+                 .help("Use assimp instead of meshlab to convert .dae to .obj for visualization"))
         .get_matches();
     let mesh_convert = if matches.is_present("assimp") {
         urdf_vis::MeshConvert::Assimp
@@ -57,14 +75,15 @@ fn main() {
 
     let urdf_robo = urdf_rs::read_file(&urdf_path).unwrap();
     let robot = nk_urdf::create_tree::<f32>(&urdf_robo);
-    let base_transform = na::Isometry3::from_parts(na::Translation3::new(0.0, 0.0, 0.0),
-                                                   na::UnitQuaternion::from_euler_angles(0.0, 1.57, 1.57));
+    let base_transform =
+        na::Isometry3::from_parts(na::Translation3::new(0.0, 0.0, 0.0),
+                                  na::UnitQuaternion::from_euler_angles(0.0, 1.57, 1.57));
     robot.root_link.borrow_mut().data.transform = base_transform;
 
     let mut scenes = HashMap::new();
     for l in urdf_robo.links {
-        scenes.insert(l.name, urdf_vis::add_geometry(
-            &l.visual, &mesh_convert, &mut window).unwrap());
+        scenes.insert(l.name,
+                      urdf_vis::add_geometry(&l.visual, &mesh_convert, &mut window).unwrap());
     }
 
     let dof = robot
@@ -73,9 +92,30 @@ fn main() {
 
     let mut angles_vec = vec![0.0f32; dof];
     let mut j = 0;
+    let mut is_drag = false;
+    let mut last_cur_pos_y = 0f64;
     while window.render_with_camera(&mut arc_ball) {
         for mut event in window.events().iter() {
             match event.value {
+                WindowEvent::MouseButton(_, Action::Press, mods) => {
+                    if mods.contains(NATIVE_MOD) {
+                        is_drag = true;
+                        event.inhibited = true;
+                    }
+                }
+                WindowEvent::CursorPos(_, y) => {
+                    if is_drag {
+                        event.inhibited = true;
+                        move_ang(j, ((y - last_cur_pos_y) / 100.0) as f32, &mut angles_vec);
+                    }
+                    last_cur_pos_y = y;
+                }
+                WindowEvent::MouseButton(_, Action::Release, _) => {
+                    if is_drag {
+                        is_drag = false;
+                        event.inhibited = true;
+                    }
+                }
                 WindowEvent::Key(code, _, Action::Press, _) => {
                     match code {
                         Key::Num0 => j = 0,
@@ -103,29 +143,33 @@ fn main() {
                         Key::M => j = 22,
                         Key::N => j = 23,
                         Key::O => j = 24,
-                        Key::Up => angles_vec[j] += 0.3,
-                        Key::Down => angles_vec[j] -= 0.3,
-                        _ => {},
-                    }
-                    event.inhibited = true // override the default keyboard handler
+                        Key::Up => move_ang(j, 0.1, &mut angles_vec),
+                        Key::Down => move_ang(j, -0.1, &mut angles_vec),
+                        _ => {}
+                    };
+                    event.inhibited = true; // override the default keyboard handler
                 }
                 _ => {}
             }
         }
-        for (lj, angle) in robot.map(&|ljn_ref| ljn_ref.clone())
-            .iter()
-            .zip(angles_vec.iter()) {
-                let _ = lj.borrow_mut().data.set_joint_angle(*angle);
-            }
+        for (lj, angle) in robot
+                .map(&|ljn_ref| ljn_ref.clone())
+                .iter()
+                .zip(angles_vec.iter()) {
+            let _ = lj.borrow_mut().data.set_joint_angle(*angle);
+        }
 
-        for (trans, link_name) in robot.calc_link_transforms().iter()
-            .zip(robot.map(&|ljn_ref| ljn_ref.borrow().data.name.clone())) {
-                match scenes.get_mut(&link_name) {
-                    Some(obj) => obj.set_local_transformation(trans.clone()),
-                    None => {
-                        println!("{} not found", link_name);
-                    }
+        for (trans, link_name) in
+            robot
+                .calc_link_transforms()
+                .iter()
+                .zip(robot.map(&|ljn_ref| ljn_ref.borrow().data.name.clone())) {
+            match scenes.get_mut(&link_name) {
+                Some(obj) => obj.set_local_transformation(trans.clone()),
+                None => {
+                    println!("{} not found", link_name);
                 }
             }
+        }
     }
 }

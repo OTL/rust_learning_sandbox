@@ -29,7 +29,7 @@ fn create_parent_dir(new_path: &Path) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-pub fn convert_xacro_to_urdf(filename: &Path, new_path: &Path) -> Result<(), std::io::Error>{
+pub fn convert_xacro_to_urdf(filename: &Path, new_path: &Path) -> Result<(), std::io::Error> {
     create_parent_dir(new_path)?;
     let output = Command::new("xacro")
         .args(&[filename.to_str().unwrap(), "-o", new_path.to_str().unwrap()])
@@ -42,7 +42,9 @@ pub fn convert_xacro_to_urdf(filename: &Path, new_path: &Path) -> Result<(), std
     }
 }
 
-pub fn convert_to_obj_file_by_meshlab(filename: &Path, new_path: &Path) -> Result<(), std::io::Error>{
+pub fn convert_to_obj_file_by_meshlab(filename: &Path,
+                                      new_path: &Path)
+                                      -> Result<(), std::io::Error> {
     create_parent_dir(new_path)?;
     info!("converting {:?} to {:?}", filename, new_path);
     let output = Command::new("meshlabserver")
@@ -56,13 +58,16 @@ pub fn convert_to_obj_file_by_meshlab(filename: &Path, new_path: &Path) -> Resul
     }
 }
 
-pub fn convert_to_obj_file_by_assimp(filename: &Path, new_path: &Path) -> Result<(), std::io::Error>{
+pub fn convert_to_obj_file_by_assimp(filename: &Path,
+                                     new_path: &Path)
+                                     -> Result<(), std::io::Error> {
     create_parent_dir(new_path)?;
     info!("converting {:?} to {:?}", filename, new_path);
-    let output = Command::new("assimp")
-        .args(&["export", filename.to_str().unwrap(), new_path.to_str().unwrap(), "-ptv"])
-        .output()
-        .expect("failed to execute meshlabserver. install by apt-get install assimp-utils");
+    let output =
+        Command::new("assimp")
+            .args(&["export", filename.to_str().unwrap(), new_path.to_str().unwrap(), "-ptv"])
+            .output()
+            .expect("failed to execute meshlabserver. install by apt-get install assimp-utils");
     if output.status.success() {
         Ok(())
     } else {
@@ -86,26 +91,29 @@ fn rospack_find(package: &str) -> Option<String> {
     }
 }
 
-pub fn add_geometry(visual: &urdf_rs::Visual, mesh_convert: &MeshConvert,
-                    window: &mut Window) -> Option<SceneNode> {
+pub fn add_geometry(visual: &urdf_rs::Visual,
+                    mesh_convert: &MeshConvert,
+                    window: &mut Window)
+                    -> Option<SceneNode> {
     let mut geom = match visual.geometry {
-        urdf_rs::Geometry::Box{ref size} => {
+        urdf_rs::Geometry::Box { ref size } => {
             Some(window.add_cube(size[0] as f32, size[1] as f32, size[2] as f32))
-        },
-        urdf_rs::Geometry::Cylinder{radius, length} => {
+        }
+        urdf_rs::Geometry::Cylinder { radius, length } => {
             Some(window.add_cylinder(radius as f32, length as f32))
-        },
-        urdf_rs::Geometry::Sphere{radius} => {
-            Some(window.add_sphere(radius as f32))
-        },
-        urdf_rs::Geometry::Mesh{ref filename, scale} => {
+        }
+        urdf_rs::Geometry::Sphere { radius } => Some(window.add_sphere(radius as f32)),
+        urdf_rs::Geometry::Mesh {
+            ref filename,
+            scale,
+        } => {
             let re = Regex::new("^package://(\\w+)/").unwrap();
-            let replaced_filename = re.replace(
-                &filename,
-                |ma: &regex::Captures| match rospack_find(&ma[1]) {
-                    Some(found_path) => found_path + "/",
-                    None => panic!("failed to find ros package {}", &ma[1]),
-                });
+            let replaced_filename =
+                re.replace(&filename,
+                           |ma: &regex::Captures| match rospack_find(&ma[1]) {
+                               Some(found_path) => found_path + "/",
+                               None => panic!("failed to find ros package {}", &ma[1]),
+                           });
             let path = Path::new(&replaced_filename);
             assert!(path.exists(), "{} not found", replaced_filename);
             let mut cache_path = "".to_string();
@@ -123,12 +131,16 @@ pub fn add_geometry(visual: &urdf_rs::Visual, mesh_convert: &MeshConvert,
             let mtl_path = Path::new(&mtl_path_string);
             if !new_path.exists() {
                 match *mesh_convert {
-                    MeshConvert::Assimp => convert_to_obj_file_by_assimp(&path, &new_path),
-                    MeshConvert::Meshlab => convert_to_obj_file_by_meshlab(&path, &new_path),
-                }.unwrap();
+                        MeshConvert::Assimp => convert_to_obj_file_by_assimp(&path, &new_path),
+                        MeshConvert::Meshlab => convert_to_obj_file_by_meshlab(&path, &new_path),
+                    }
+                    .unwrap();
             }
-            Some(window.add_obj(&new_path, &mtl_path,
-                                na::Vector3::new(scale[0] as f32, scale[1] as f32, scale[2] as f32)))
+            Some(window.add_obj(&new_path,
+                                &mtl_path,
+                                na::Vector3::new(scale[0] as f32,
+                                                 scale[1] as f32,
+                                                 scale[2] as f32)))
         }
     };
     let rgba = &visual.material.color.rgba;
@@ -140,5 +152,4 @@ pub fn add_geometry(visual: &urdf_rs::Visual, mesh_convert: &MeshConvert,
 }
 
 #[test]
-fn it_works() {
-}
+fn it_works() {}
