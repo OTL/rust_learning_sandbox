@@ -15,10 +15,15 @@ use regex::Regex;
 use std::path::Path;
 use std::process::Command;
 
+pub enum MeshConvert {
+    Assimp,
+    Meshlab,
+}
+
 fn create_parent_dir(new_path: &Path) -> Result<(), std::io::Error> {
     let new_parent_dir = new_path.parent().unwrap();
     if !new_parent_dir.is_dir() {
-        info!("creating {}", new_parent_dir.to_str().unwrap());
+        info!("creating dir {}", new_parent_dir.to_str().unwrap());
         std::fs::create_dir_all(new_parent_dir)?;
     }
     Ok(())
@@ -37,7 +42,7 @@ pub fn convert_xacro_to_urdf(filename: &Path, new_path: &Path) -> Result<(), std
     }
 }
 
-pub fn convert_to_obj_file(filename: &Path, new_path: &Path) -> Result<(), std::io::Error>{
+pub fn convert_to_obj_file_by_meshlab(filename: &Path, new_path: &Path) -> Result<(), std::io::Error>{
     create_parent_dir(new_path)?;
     info!("converting {:?} to {:?}", filename, new_path);
     let output = Command::new("meshlabserver")
@@ -55,7 +60,7 @@ pub fn convert_to_obj_file_by_assimp(filename: &Path, new_path: &Path) -> Result
     create_parent_dir(new_path)?;
     info!("converting {:?} to {:?}", filename, new_path);
     let output = Command::new("assimp")
-        .args(&["export", filename.to_str().unwrap(), new_path.to_str().unwrap()])
+        .args(&["export", filename.to_str().unwrap(), new_path.to_str().unwrap(), "-ptv"])
         .output()
         .expect("failed to execute meshlabserver. install by apt-get install assimp-utils");
     if output.status.success() {
@@ -81,8 +86,8 @@ fn rospack_find(package: &str) -> Option<String> {
     }
 }
 
-pub fn add_geometry(visual: &urdf_rs::Visual, window: &mut Window)
-                    -> Option<SceneNode> {
+pub fn add_geometry(visual: &urdf_rs::Visual, mesh_convert: &MeshConvert,
+                    window: &mut Window) -> Option<SceneNode> {
     let mut geom = match visual.geometry {
         urdf_rs::Geometry::Box{ref size} => {
             Some(window.add_cube(size[0] as f32, size[1] as f32, size[2] as f32))
@@ -117,8 +122,10 @@ pub fn add_geometry(visual: &urdf_rs::Visual, window: &mut Window)
             let mtl_path_string = cache_path.clone() + ".mtl";
             let mtl_path = Path::new(&mtl_path_string);
             if !new_path.exists() {
-                convert_to_obj_file(&path, &new_path).unwrap();
-                // convert_to_obj_file_by_assimp(&path, &new_path).unwrap();
+                match *mesh_convert {
+                    MeshConvert::Assimp => convert_to_obj_file_by_assimp(&path, &new_path),
+                    MeshConvert::Meshlab => convert_to_obj_file_by_meshlab(&path, &new_path),
+                }.unwrap();
             }
             Some(window.add_obj(&new_path, &mtl_path,
                                 na::Vector3::new(scale[0] as f32, scale[1] as f32, scale[2] as f32)))

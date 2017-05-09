@@ -1,4 +1,5 @@
 extern crate alga;
+extern crate clap;
 extern crate env_logger;
 extern crate glfw;
 extern crate kiss3d;
@@ -8,6 +9,7 @@ extern crate nkinematics_urdf as nk_urdf;
 extern crate urdf_rs;
 extern crate urdf_vis;
 
+use clap::{Arg, App};
 use glfw::{Action, WindowEvent, Key};
 use kiss3d::camera::ArcBall;
 use kiss3d::light::Light;
@@ -17,29 +19,42 @@ use std::path::Path;
 
 fn main() {
     env_logger::init().unwrap();
+    let matches = App::new("urdf_viewer")
+        .author("Takashi Ogura <t.ogura@gmail.com>")
+        .about("Show and move urdf robot model for debuging")
+        .arg(Arg::with_name("input")
+             .help("input urdf or xacro file")
+             .required(true))
+        .arg(Arg::with_name("assimp")
+             .short("a")
+             .long("assimp")
+             .help("Use assimp instead of meshlab to convert .dae to .obj for visualization"))
+        .get_matches();
+    let mesh_convert = if matches.is_present("assimp") {
+        urdf_vis::MeshConvert::Assimp
+    } else {
+        urdf_vis::MeshConvert::Meshlab
+    };
 
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        println!("Usage: {} URDF_FILE or XACRO_FILE", args[0]);
-        std::process::exit(1);
-    }
     let mut window = Window::new("urdf_viewer");
     window.set_light(Light::StickToCamera);
-    let eye = na::Point3::new(0.5f32, 1.0, -2.0);
-    let at = na::Point3::new(0.0f32, 0.5, 0.0);
+    let eye = na::Point3::new(0.5f32, 1.0, -3.0);
+    let at = na::Point3::new(0.0f32, 0.25, 0.0);
     let mut arc_ball = ArcBall::new(eye, at);
 
-    let input_path = Path::new(&args[1]);
+    let arg_input = matches.value_of("input").unwrap();
     let urdf_file_path;
     let urdf_path;
+    let input_path = Path::new(&arg_input);
     if input_path.extension().unwrap() == "xacro" {
         urdf_file_path = format!("/tmp/urdf_vis/{}",
                                  &input_path.with_extension("urdf").to_str().unwrap());
         urdf_path = Path::new(&urdf_file_path);
         urdf_vis::convert_xacro_to_urdf(&input_path, &urdf_path).unwrap();
     } else {
-        urdf_path = Path::new(&args[1]);
+        urdf_path = input_path;
     }
+
     let urdf_robo = urdf_rs::read_file(&urdf_path).unwrap();
     let robot = nk_urdf::create_tree::<f32>(&urdf_robo);
     let base_transform = na::Isometry3::from_parts(na::Translation3::new(0.0, 0.0, 0.0),
@@ -48,7 +63,8 @@ fn main() {
 
     let mut scenes = HashMap::new();
     for l in urdf_robo.links {
-        scenes.insert(l.name, urdf_vis::add_geometry(&l.visual, &mut window).unwrap());
+        scenes.insert(l.name, urdf_vis::add_geometry(
+            &l.visual, &mesh_convert, &mut window).unwrap());
     }
 
     let dof = robot
