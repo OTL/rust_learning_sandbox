@@ -35,13 +35,13 @@ impl<T> KinematicChain<T> for RefKinematicChain<T>
         self.linked_joints
             .iter()
             .fold(self.transform,
-                  |trans, ref ljn_ref| trans * ljn_ref.borrow().data.calc_transform())
+                  |trans, ljn_ref| trans * ljn_ref.borrow().data.calc_transform())
     }
-    fn set_joint_angles(&mut self, angles: &Vec<T>) -> Result<(), JointError> {
+    fn set_joint_angles(&mut self, angles: &[T]) -> Result<(), JointError> {
         // TODO: is it possible to cache the joint_with_angle to speed up?
         let mut joints_with_angle = self.linked_joints
             .iter_mut()
-            .filter(|ref ljn_ref| ljn_ref.borrow().data.has_joint_angle())
+            .filter(|ljn_ref| ljn_ref.borrow().data.has_joint_angle())
             .collect::<Vec<_>>();
         if joints_with_angle.len() != angles.len() {
             return Err(JointError::SizeMisMatch);
@@ -54,7 +54,7 @@ impl<T> KinematicChain<T> for RefKinematicChain<T>
     fn get_joint_angles(&self) -> Vec<T> {
         self.linked_joints
             .iter()
-            .filter_map(|ref ljn_ref| ljn_ref.borrow().data.get_joint_angle())
+            .filter_map(|ljn_ref| ljn_ref.borrow().data.get_joint_angle())
             .collect()
     }
 }
@@ -85,7 +85,7 @@ impl<T: Real> LinkedJointTree<T> {
                 None => Isometry3::identity(),
             };
             let trans = parent_transform * ljn.borrow().data.calc_transform();
-            ljn.borrow_mut().data.world_transform_cache = Some(trans.clone());
+            ljn.borrow_mut().data.world_transform_cache = Some(trans);
             trans
         })
     }
@@ -148,7 +148,9 @@ fn it_works() {
 
     let get_z = |ljn: &RefLinkedJointNode<f32>| match ljn.borrow().parent {
         Some(ref parent) => {
-            (parent.borrow().data.calc_transform() * ljn.borrow().data.calc_transform())
+            let rc_parent = parent.upgrade().unwrap().clone();
+            let parent_obj = rc_parent.borrow();
+            (parent_obj.data.calc_transform() * ljn.borrow().data.calc_transform())
                 .translation
                 .vector
                 .z

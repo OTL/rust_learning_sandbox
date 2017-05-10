@@ -42,9 +42,9 @@ impl Error for JointError {
 
 
 
-/// Robot representation with set of LinkedFrames
+/// Robot representation with set of `LinkedFrame`s
 ///
-/// This contains multiple LinkedFrame.
+/// This contains multiple `LinkedFrame`.
 /// The frames must be serial without branch.
 /// root is the only link which has branch.
 #[derive(Debug, Clone)]
@@ -67,22 +67,22 @@ impl<T> RobotFrame<T>
     pub fn calc_link_transforms(&self) -> Vec<Vec<Isometry3<T>>> {
         self.frames
             .iter()
-            .map(|ref lf| {
-                     lf.calc_link_transforms()
-                         .iter()
-                         .map(|&tf| self.transform * tf)
-                         .collect()
-                 })
+            .map(|lf| {
+                lf.calc_link_transforms()
+                    .iter()
+                    .map(|&tf| self.transform * tf)
+                    .collect()
+            })
             .collect()
     }
     pub fn set_transform(&mut self, transform: Isometry3<T>) {
         self.transform = transform;
-        for frame in self.frames.iter_mut() {
+        for frame in &mut self.frames {
             frame.transform = self.transform * frame.transform;
         }
     }
     pub fn get_transform(&self) -> Isometry3<T> {
-        return self.transform;
+        self.transform
     }
 }
 
@@ -90,7 +90,7 @@ pub trait KinematicChain<T>
     where T: Real
 {
     fn calc_end_transform(&self) -> Isometry3<T>;
-    fn set_joint_angles(&mut self, angles: &Vec<T>) -> Result<(), JointError>;
+    fn set_joint_angles(&mut self, angles: &[T]) -> Result<(), JointError>;
     fn get_joint_angles(&self) -> Vec<T>;
 }
 
@@ -125,7 +125,7 @@ impl<T> LinkedFrame<T>
     pub fn calc_link_transforms(&self) -> Vec<Isometry3<T>> {
         self.linked_joints
             .iter()
-            .scan(self.transform, |base, ref lj| {
+            .scan(self.transform, |base, lj| {
                 *base *= lj.calc_transform();
                 Some(*base)
             })
@@ -133,6 +133,9 @@ impl<T> LinkedFrame<T>
     }
     pub fn len(&self) -> usize {
         self.linked_joints.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.linked_joints.is_empty()
     }
 }
 
@@ -142,15 +145,15 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
     fn calc_end_transform(&self) -> Isometry3<T> {
         self.linked_joints
             .iter()
-            .fold(self.transform, |trans, ref lj| trans * lj.calc_transform())
+            .fold(self.transform, |trans, lj| trans * lj.calc_transform())
     }
 
     /// if failed, joints angles are non determined,
-    fn set_joint_angles(&mut self, angles: &Vec<T>) -> Result<(), JointError> {
+    fn set_joint_angles(&mut self, angles: &[T]) -> Result<(), JointError> {
         // TODO: is it possible to cache the joint_with_angle to speed up?
         let mut joints_with_angle = self.linked_joints
             .iter_mut()
-            .filter(|ref lj| lj.has_joint_angle())
+            .filter(|lj| lj.has_joint_angle())
             .collect::<Vec<_>>();
         if joints_with_angle.len() != angles.len() {
             return Err(JointError::SizeMisMatch);
@@ -164,7 +167,7 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
     fn get_joint_angles(&self) -> Vec<T> {
         self.linked_joints
             .iter()
-            .filter_map(|ref linked_joint| linked_joint.get_joint_angle())
+            .filter_map(|linked_joint| linked_joint.get_joint_angle())
             .collect()
     }
 }
@@ -254,17 +257,13 @@ impl<T> Joint<T>
         self.limits = limits;
     }
     pub fn set_angle(&mut self, angle: T) -> Result<(), JointError> {
-        match self.joint_type {
-            JointType::Fixed => return Err(JointError::OutOfLimit),
-            _ => {}
+        if let JointType::Fixed = self.joint_type {
+            return Err(JointError::OutOfLimit)
         }
-        match self.limits.clone() {
-            Some(range) => {
-                if !range.is_valid(angle) {
-                    return Err(JointError::OutOfLimit);
-                }
+        if let Some(range) = self.limits.clone() {
+            if !range.is_valid(angle) {
+                return Err(JointError::OutOfLimit);
             }
-            None => {}
         }
         self.angle = angle;
         Ok(())
@@ -291,7 +290,7 @@ impl<T> Joint<T>
 }
 
 
-/// Build a LinkedJoint<T>
+/// Build a `LinkedJoint<T>`
 ///
 /// # Examples
 ///

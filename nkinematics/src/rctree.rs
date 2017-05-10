@@ -43,9 +43,9 @@ pub fn map_descendants<T, F, K>(root: &RefNode<T>, func: &F) -> Vec<K>
 fn map_descendants_internal<T, F, K>(root: &RefNode<T>, func: &F, ret: &mut Vec<K>)
     where F: Fn(&RefNode<T>) -> K
 {
-    ret.push(func(&root));
-    for c in root.borrow().children.iter() {
-        map_descendants_internal(&c, func, ret);
+    ret.push(func(root));
+    for c in &root.borrow().children {
+        map_descendants_internal(c, func, ret);
     }
 }
 

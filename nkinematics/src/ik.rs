@@ -86,7 +86,7 @@ impl<T> JacobianIKSolver<T>
         let orig_angles = arm.get_joint_angles();
         let dof = orig_angles.len();
         let orig_pose6 = calc_vector6_pose(&arm.calc_end_transform());
-        let target_pose6 = calc_vector6_pose(&target_pose);
+        let target_pose6 = calc_vector6_pose(target_pose);
         let mut jacobi_vec = Vec::new();
         for i in 0..dof {
             let mut small_diff_angles_i = orig_angles.clone();
@@ -125,7 +125,7 @@ impl<T> InverseKinematicsSolver<T> for JacobianIKSolver<T>
             return Err(IKError::PreconditionError);
         }
         for _ in 0..self.num_max_try {
-            let target_distance = try!(self.solve_one_loop(arm, &target_pose));
+            let target_distance = try!(self.solve_one_loop(arm, target_pose));
             if target_distance < self.allowable_target_distance {
                 return Ok(target_distance);
             }
@@ -136,9 +136,9 @@ impl<T> InverseKinematicsSolver<T> for JacobianIKSolver<T>
 }
 
 
-/// Build jacobianIKSolverBuilder
+/// Build `jacobianIKSolverBuilder`
 ///
-/// This builder allow initialation of JacobianIKSolver
+/// This builder allow initialation of `JacobianIKSolver`
 /// without any parameters.
 ///
 pub struct JacobianIKSolverBuilder<T>

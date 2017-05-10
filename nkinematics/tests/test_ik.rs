@@ -116,7 +116,7 @@ mod tests {
         let init_pose = arm.calc_end_transform();
         let solver = nk::JacobianIKSolver::new(0.001, 0.001, 100);
         // set different angles
-        arm.set_joint_angles(&vec![0.4, 0.1, 0.1, -1.0, 0.1, 0.1])
+        arm.set_joint_angles(&[0.4, 0.1, 0.1, -1.0, 0.1, 0.1])
             .unwrap();
         solver.solve(&mut arm, &init_pose).unwrap();
         let end_angles = arm.get_joint_angles();
