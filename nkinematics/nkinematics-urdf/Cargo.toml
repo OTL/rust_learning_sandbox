@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Takashi Ogura <t.ogura@gmail.com>"]
 
 [dependencies]
-nkinematics = { path = "../nkinematics" }
+nkinematics = { version = "0.1.0", path = ".." }
 urdf-rs = "0.1.4"
 nalgebra = "0.11.0"
 alga = "0.5.1"

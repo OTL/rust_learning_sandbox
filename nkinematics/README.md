@@ -7,14 +7,23 @@ See examples/ for more details.
 
 ## Enjoy example at first!!
 
-![ik_sample](screenshot.png)
-
 ```bash
-cd examples/
-cargo run --bin interactive_ik
+cargo run --release --example interactive_ik
 ```
 
-Push *f* *b* *p* *n* *l* *r* key to move the end of the manipulator.
-*z* will reset the manipulator state.
+![ik_sample](screenshot.png)
 
-## How to use
+
+Push below keys to move the end of the manipulator.
+
+- *f*: forward
+- *b*: backward
+- *p*: up
+- *n*: down
+- *l*: left
+- *r*: right
+- *z*: reset the manipulator state.
+
+## URDF
+
+You can use URDF file to build your robot model using `nkinematics-urdf` crate.

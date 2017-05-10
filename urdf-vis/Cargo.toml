@@ -10,8 +10,8 @@ glfw = "0.8.0" # required by kiss3d
 kiss3d = "0.8.0"
 log = "0.3"
 nalgebra = "0.11.0"
-nkinematics = { path = "../nkinematics" }
-nkinematics-urdf = { path = "../nkinematics-urdf" }
+nkinematics = { version = "0.1.0", path = "../nkinematics" }
+nkinematics-urdf = { version = "0.1.0",  path = "../nkinematics/nkinematics-urdf" }
 regex = "0.1"
 urdf-rs = "0.1.4"
 clap = "*"

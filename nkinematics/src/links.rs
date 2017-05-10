@@ -77,9 +77,6 @@ impl<T> RobotFrame<T>
     }
     pub fn set_transform(&mut self, transform: Isometry3<T>) {
         self.transform = transform;
-        for frame in &mut self.frames {
-            frame.transform = self.transform * frame.transform;
-        }
     }
     pub fn get_transform(&self) -> Isometry3<T> {
         self.transform
