@@ -14,6 +14,8 @@ use glfw::{Action, WindowEvent, Key};
 use kiss3d::camera::ArcBall;
 use kiss3d::light::Light;
 use kiss3d::window::Window;
+use nk::InverseKinematicsSolver;
+use nk::KinematicChain;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -23,7 +25,7 @@ static NATIVE_MOD: glfw::Modifiers = glfw::Super;
 #[cfg(not(target_os = "macos"))]
 static NATIVE_MOD: glfw::Modifiers = glfw::Control;
 
-fn move_ang(index: usize, rot: f32, angles_vec: &mut Vec<f32>) {
+fn move_ang(index: usize, rot: f32, angles_vec: &mut Vec<f32>, robot: &mut nk::LinkedJointTree<f32>) {
     if index == 0 {
         for ang in angles_vec.iter_mut() {
             *ang += rot;
@@ -32,8 +34,13 @@ fn move_ang(index: usize, rot: f32, angles_vec: &mut Vec<f32>) {
         let dof = angles_vec.len();
         angles_vec[index % dof] += rot;
     }
+    for (lj, angle) in
+        robot.map(&|ljn_ref| ljn_ref.clone())
+        .iter()
+        .zip(angles_vec.iter()) {
+            let _ = lj.borrow_mut().data.set_joint_angle(*angle);
+        }
 }
-
 
 fn main() {
     env_logger::init().unwrap();
@@ -74,7 +81,7 @@ fn main() {
     }
 
     let urdf_robo = urdf_rs::read_file(&urdf_path).unwrap();
-    let robot = nk_urdf::create_tree::<f32>(&urdf_robo);
+    let mut robot = nk_urdf::create_tree::<f32>(&urdf_robo);
     let base_transform =
         na::Isometry3::from_parts(na::Translation3::new(0.0, 0.0, 0.0),
                                   na::UnitQuaternion::from_euler_angles(0.0, 1.57, 1.57));
@@ -86,6 +93,31 @@ fn main() {
                       urdf_vis::add_geometry(&l.visual, &mesh_convert, &mut window).unwrap());
     }
 
+    let optional_ends = robot.map(&|ljn_ref|
+                                  if ljn_ref.borrow().children.is_empty() {
+                                      Some(ljn_ref.clone())
+                                  } else {
+                                      None
+                                  });
+    let mut arms = optional_ends
+        .iter()
+        .filter_map(|ljn_ref_opt|
+                    match *ljn_ref_opt {
+                        Some(ref ljn_ref) => {
+                            let kc = nk::RefKinematicChain::new(&ljn_ref.borrow().data.name, ljn_ref);
+                            if kc.get_joint_angles().len() >= 6 {
+                                Some(kc)
+                            } else {
+                                None
+                            }
+                        }
+                        None => None,
+                    })
+        .collect::<Vec<_>>();
+    let num_arms = arms.len();
+    println!("num_arms = {}", num_arms);
+    let solver = nk::JacobianIKSolverBuilder::new().finalize();
+
     let dof = robot
         .map(&|ljn_ref| ljn_ref.borrow().data.get_joint_angle())
         .len();
@@ -93,7 +125,9 @@ fn main() {
     let mut angles_vec = vec![0.0f32; dof];
     let mut j = 0;
     let mut is_drag = false;
+    let mut is_shift = false;
     let mut last_cur_pos_y = 0f64;
+    let mut last_cur_pos_x = 0f64;
     while window.render_with_camera(&mut arc_ball) {
         for mut event in window.events().iter() {
             match event.value {
@@ -101,18 +135,38 @@ fn main() {
                     if mods.contains(NATIVE_MOD) {
                         is_drag = true;
                         event.inhibited = true;
+                    } else if mods.contains(glfw::Shift) {
+                        is_shift = true;
+                        event.inhibited = true;
                     }
                 }
-                WindowEvent::CursorPos(_, y) => {
+                WindowEvent::CursorPos(x, y) => {
                     if is_drag {
                         event.inhibited = true;
-                        move_ang(j, ((y - last_cur_pos_y) / 100.0) as f32, &mut angles_vec);
+                        move_ang(j, ((y - last_cur_pos_y) / 100.0) as f32, &mut angles_vec, &mut robot);
                     }
+                    if is_shift {
+                        event.inhibited = true;
+                        let mut target = arms[j % num_arms].calc_end_transform();
+                        target.translation.vector[2] +=
+                            ((x - last_cur_pos_x) / 100.0) as f32;
+                        target.translation.vector[1] +=
+                            ((y - last_cur_pos_y) / 100.0) as f32;
+                        solver.solve(&mut arms[j % num_arms], &target)
+                            .unwrap_or_else(|err| {
+                                println!("Err: {}", err);
+                                0.0f32
+                            });
+                    }
+                    last_cur_pos_x = x;
                     last_cur_pos_y = y;
                 }
                 WindowEvent::MouseButton(_, Action::Release, _) => {
                     if is_drag {
                         is_drag = false;
+                        event.inhibited = true;
+                    } else if is_shift {
+                        is_shift = false;
                         event.inhibited = true;
                     }
                 }
@@ -143,20 +197,14 @@ fn main() {
                         Key::M => j = 22,
                         Key::N => j = 23,
                         Key::O => j = 24,
-                        Key::Up => move_ang(j, 0.1, &mut angles_vec),
-                        Key::Down => move_ang(j, -0.1, &mut angles_vec),
+                        Key::Up => move_ang(j, 0.1, &mut angles_vec, &mut robot),
+                        Key::Down => move_ang(j, -0.1, &mut angles_vec, &mut robot),
                         _ => {}
                     };
-                    event.inhibited = true; // override the default keyboard handler
+                    event.inhibited = true;
                 }
                 _ => {}
             }
-        }
-        for (lj, angle) in robot
-                .map(&|ljn_ref| ljn_ref.clone())
-                .iter()
-                .zip(angles_vec.iter()) {
-            let _ = lj.borrow_mut().data.set_joint_angle(*angle);
         }
 
         for (trans, link_name) in
