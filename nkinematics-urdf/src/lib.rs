@@ -40,7 +40,8 @@ pub fn create_linked_joint_from_urdf_joint<T>(joint: &urdf_rs::Joint) -> nk::Lin
     nk::LinkedJointBuilder::<T>::new()
         .joint(&joint.name,
                match joint.joint_type {
-                   urdf_rs::JointType::Revolute | urdf_rs::JointType::Continuous => {
+                   urdf_rs::JointType::Revolute |
+                   urdf_rs::JointType::Continuous => {
                        nk::JointType::Rotational { axis: axis_from(joint.axis.xyz) }
                    }
                    urdf_rs::JointType::Prismatic => {

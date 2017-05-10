@@ -109,7 +109,7 @@ pub fn add_geometry(visual: &urdf_rs::Visual,
         } => {
             let re = Regex::new("^package://(\\w+)/").unwrap();
             let replaced_filename =
-                re.replace(&filename,
+                re.replace(filename,
                            |ma: &regex::Captures| match rospack_find(&ma[1]) {
                                Some(found_path) => found_path + "/",
                                None => panic!("failed to find ros package {}", &ma[1]),
@@ -131,13 +131,13 @@ pub fn add_geometry(visual: &urdf_rs::Visual,
             let mtl_path = Path::new(&mtl_path_string);
             if !new_path.exists() {
                 match *mesh_convert {
-                        MeshConvert::Assimp => convert_to_obj_file_by_assimp(&path, &new_path),
-                        MeshConvert::Meshlab => convert_to_obj_file_by_meshlab(&path, &new_path),
+                        MeshConvert::Assimp => convert_to_obj_file_by_assimp(path, new_path),
+                        MeshConvert::Meshlab => convert_to_obj_file_by_meshlab(path, new_path),
                     }
                     .unwrap();
             }
-            Some(window.add_obj(&new_path,
-                                &mtl_path,
+            Some(window.add_obj(new_path,
+                                mtl_path,
                                 na::Vector3::new(scale[0] as f32,
                                                  scale[1] as f32,
                                                  scale[2] as f32)))

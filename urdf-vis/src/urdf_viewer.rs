@@ -25,7 +25,10 @@ static NATIVE_MOD: glfw::Modifiers = glfw::Super;
 #[cfg(not(target_os = "macos"))]
 static NATIVE_MOD: glfw::Modifiers = glfw::Control;
 
-fn move_ang(index: usize, rot: f32, angles_vec: &mut Vec<f32>, robot: &mut nk::LinkedJointTree<f32>) {
+fn move_ang(index: usize,
+            rot: f32,
+            angles_vec: &mut Vec<f32>,
+            robot: &mut nk::LinkedJointTree<f32>) {
     if index == 0 {
         for ang in angles_vec.iter_mut() {
             *ang += rot;
@@ -34,12 +37,12 @@ fn move_ang(index: usize, rot: f32, angles_vec: &mut Vec<f32>, robot: &mut nk::L
         let dof = angles_vec.len();
         angles_vec[index % dof] += rot;
     }
-    for (lj, angle) in
-        robot.map(&|ljn_ref| ljn_ref.clone())
-        .iter()
-        .zip(angles_vec.iter()) {
-            let _ = lj.borrow_mut().data.set_joint_angle(*angle);
-        }
+    for (lj, angle) in robot
+            .map(&|ljn_ref| ljn_ref.clone())
+            .iter()
+            .zip(angles_vec.iter()) {
+        let _ = lj.borrow_mut().data.set_joint_angle(*angle);
+    }
 }
 
 fn main() {
@@ -75,7 +78,7 @@ fn main() {
         urdf_file_path = format!("/tmp/urdf_vis/{}",
                                  &input_path.with_extension("urdf").to_str().unwrap());
         urdf_path = Path::new(&urdf_file_path);
-        urdf_vis::convert_xacro_to_urdf(&input_path, &urdf_path).unwrap();
+        urdf_vis::convert_xacro_to_urdf(input_path, urdf_path).unwrap();
     } else {
         urdf_path = input_path;
     }
@@ -93,24 +96,22 @@ fn main() {
                       urdf_vis::add_geometry(&l.visual, &mesh_convert, &mut window).unwrap());
     }
 
-    let optional_ends = robot.map(&|ljn_ref|
-                                  if ljn_ref.borrow().children.is_empty() {
-                                      Some(ljn_ref.clone())
-                                  } else {
-                                      None
-                                  });
+    let optional_ends = robot.map(&|ljn_ref| if ljn_ref.borrow().children.is_empty() {
+                                       Some(ljn_ref.clone())
+                                   } else {
+                                       None
+                                   });
     let mut arms = optional_ends
         .iter()
-        .filter_map(|ljn_ref_opt|
-                    match *ljn_ref_opt {
+        .filter_map(|ljn_ref_opt| match *ljn_ref_opt {
                         Some(ref ljn_ref) => {
-                            let kc = nk::RefKinematicChain::new(&ljn_ref.borrow().data.name, ljn_ref);
-                            if kc.get_joint_angles().len() >= 6 {
-                                Some(kc)
-                            } else {
-                                None
-                            }
-                        }
+            let kc = nk::RefKinematicChain::new(&ljn_ref.borrow().data.name, ljn_ref);
+            if kc.get_joint_angles().len() >= 6 {
+                Some(kc)
+            } else {
+                None
+            }
+        }
                         None => None,
                     })
         .collect::<Vec<_>>();
@@ -124,7 +125,7 @@ fn main() {
 
     let mut angles_vec = vec![0.0f32; dof];
     let mut j = 0;
-    let mut is_drag = false;
+    let mut is_ctrl = false;
     let mut is_shift = false;
     let mut last_cur_pos_y = 0f64;
     let mut last_cur_pos_x = 0f64;
@@ -133,7 +134,7 @@ fn main() {
             match event.value {
                 WindowEvent::MouseButton(_, Action::Press, mods) => {
                     if mods.contains(NATIVE_MOD) {
-                        is_drag = true;
+                        is_ctrl = true;
                         event.inhibited = true;
                     } else if mods.contains(glfw::Shift) {
                         is_shift = true;
@@ -141,29 +142,35 @@ fn main() {
                     }
                 }
                 WindowEvent::CursorPos(x, y) => {
-                    if is_drag {
+                    if is_ctrl {
                         event.inhibited = true;
-                        move_ang(j, ((y - last_cur_pos_y) / 100.0) as f32, &mut angles_vec, &mut robot);
+                        move_ang(j,
+                                 ((y - last_cur_pos_y) / 100.0) as f32,
+                                 &mut angles_vec,
+                                 &mut robot);
                     }
                     if is_shift {
                         event.inhibited = true;
                         let mut target = arms[j % num_arms].calc_end_transform();
-                        target.translation.vector[2] +=
-                            ((x - last_cur_pos_x) / 100.0) as f32;
-                        target.translation.vector[1] +=
-                            ((y - last_cur_pos_y) / 100.0) as f32;
-                        solver.solve(&mut arms[j % num_arms], &target)
+                        target.translation.vector[2] -= ((x - last_cur_pos_x) / 100.0) as f32;
+                        if is_ctrl {
+                            target.translation.vector[1] += ((y - last_cur_pos_y) / 100.0) as f32;
+                        } else {
+                            target.translation.vector[0] += ((y - last_cur_pos_y) / 100.0) as f32;
+                        }
+                        solver
+                            .solve(&mut arms[j % num_arms], &target)
                             .unwrap_or_else(|err| {
-                                println!("Err: {}", err);
-                                0.0f32
-                            });
+                                                println!("Err: {}", err);
+                                                0.0f32
+                                            });
                     }
                     last_cur_pos_x = x;
                     last_cur_pos_y = y;
                 }
                 WindowEvent::MouseButton(_, Action::Release, _) => {
-                    if is_drag {
-                        is_drag = false;
+                    if is_ctrl {
+                        is_ctrl = false;
                         event.inhibited = true;
                     } else if is_shift {
                         is_shift = false;
@@ -213,7 +220,7 @@ fn main() {
                 .iter()
                 .zip(robot.map(&|ljn_ref| ljn_ref.borrow().data.name.clone())) {
             match scenes.get_mut(&link_name) {
-                Some(obj) => obj.set_local_transformation(trans.clone()),
+                Some(obj) => obj.set_local_transformation(*trans),
                 None => {
                     println!("{} not found", link_name);
                 }

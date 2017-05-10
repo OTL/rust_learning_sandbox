@@ -68,11 +68,11 @@ impl<T> RobotFrame<T>
         self.frames
             .iter()
             .map(|lf| {
-                lf.calc_link_transforms()
-                    .iter()
-                    .map(|&tf| self.transform * tf)
-                    .collect()
-            })
+                     lf.calc_link_transforms()
+                         .iter()
+                         .map(|&tf| self.transform * tf)
+                         .collect()
+                 })
             .collect()
     }
     pub fn set_transform(&mut self, transform: Isometry3<T>) {
@@ -258,7 +258,7 @@ impl<T> Joint<T>
     }
     pub fn set_angle(&mut self, angle: T) -> Result<(), JointError> {
         if let JointType::Fixed = self.joint_type {
-            return Err(JointError::OutOfLimit)
+            return Err(JointError::OutOfLimit);
         }
         if let Some(range) = self.limits.clone() {
             if !range.is_valid(angle) {
