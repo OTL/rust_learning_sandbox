@@ -8,6 +8,7 @@ use rctree::*;
 pub type RefLinkedJointNode<T> = RefNode<LinkedJoint<T>>;
 pub type LinkedJointNode<T> = Node<LinkedJoint<T>>;
 
+/// Kinematic chain using `Rc<RefCell<LinkedJointNode<T>>>`
 pub struct RefKinematicChain<T: Real> {
     pub name: String,
     pub linked_joints: Vec<RefLinkedJointNode<T>>,
@@ -59,6 +60,7 @@ impl<T> KinematicChain<T> for RefKinematicChain<T>
     }
 }
 
+/// Kinematic Tree using `Rc<RefCell<LinkedJoint<T>>>`
 pub struct LinkedJointTree<T: Real> {
     pub name: String,
     pub root_link: RefLinkedJointNode<T>,

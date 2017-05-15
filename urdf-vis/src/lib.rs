@@ -1,3 +1,14 @@
+//! # urdf visualization
+//!
+//! # Limitation
+//!
+//! ## Mesh
+//!
+//! Only `.obj` is supported by [kiss3d](https://github.com/sebcrozet/kiss3d),
+//! the visualization library. Other files are converted by `meshlabserver`.
+//! If you add `-a` option, `assimp` is used instead of meshlab.
+//! You need to install meshlab or assimp anyway.
+//!
 extern crate alga;
 extern crate glfw;
 extern crate kiss3d;
