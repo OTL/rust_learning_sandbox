@@ -121,6 +121,18 @@ pub fn create_kinematic_chains<T>(tree: &LinkedJointTree<T>) -> Vec<RefKinematic
         .collect::<Vec<_>>()
 }
 
+pub fn set_joint_angles<T>(robot: &mut LinkedJointTree<T>, angles_vec: &Vec<T>)
+    where T: Real
+{
+    // TODO: check the length
+    for (lj, angle) in robot
+            .map(&|ljn_ref| ljn_ref.clone())
+            .iter()
+            .zip(angles_vec.iter()) {
+        let _ = lj.borrow_mut().data.set_joint_angle(*angle);
+    }
+}
+
 #[test]
 fn it_works() {
     let l0 = LinkedJointBuilder::new()

@@ -1,10 +1,11 @@
 [package]
-name = "urdf-vis"
+name = "urdf-viz"
 version = "0.1.0"
 authors = ["Takashi Ogura <t.ogura@gmail.com>"]
 
 [dependencies]
 alga = "0.5.1"
+clap = "*"
 env_logger = "0.4.2"
 glfw = "0.8.0" # required by kiss3d
 kiss3d = "0.8.0"
@@ -14,7 +15,6 @@ nkinematics = { version = "0.1.0", path = "../nkinematics" }
 nkinematics-urdf = { version = "0.1.0",  path = "../nkinematics/nkinematics-urdf" }
 regex = "0.1"
 urdf-rs = "0.1.5"
-clap = "*"
 
 [[bin]]
 name = "urdf_viewer"

@@ -41,15 +41,21 @@ fn create_parent_dir(new_path: &Path) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-pub fn convert_xacro_to_urdf(filename: &Path, new_path: &Path) -> Result<(), std::io::Error> {
-    create_parent_dir(new_path)?;
+pub fn convert_xacro_to_urdf<P>(filename: P, new_path: P) -> Result<(), std::io::Error>
+    where P: AsRef<Path>
+{
+    create_parent_dir(new_path.as_ref())?;
     let output = Command::new("xacro")
-        .args(&[filename.to_str().unwrap(), "-o", new_path.to_str().unwrap()])
+        .args(&["--inorder",
+                filename.as_ref().to_str().unwrap(),
+                "-o",
+                new_path.as_ref().to_str().unwrap()])
         .output()
         .expect("failed to execute xacro. install by apt-get install ros-*-xacro");
     if output.status.success() {
         Ok(())
     } else {
+        error!("{}", String::from_utf8(output.stderr).unwrap());
         Err(std::io::Error::new(std::io::ErrorKind::Other, "faild to xacro"))
     }
 }
@@ -162,6 +168,7 @@ pub fn add_geometry(visual: &urdf_rs::Visual,
     }
     geom
 }
+
 
 pub struct Viewer {
     pub window: kiss3d::window::Window,

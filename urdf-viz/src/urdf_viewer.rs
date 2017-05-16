@@ -2,12 +2,11 @@ extern crate alga;
 extern crate clap;
 extern crate env_logger;
 extern crate glfw;
-extern crate kiss3d;
 extern crate nalgebra as na;
 extern crate nkinematics as nk;
 extern crate nkinematics_urdf as nk_urdf;
 extern crate urdf_rs;
-extern crate urdf_vis;
+extern crate urdf_viz;
 
 use clap::{Arg, App};
 use glfw::{Action, WindowEvent, Key};
@@ -33,12 +32,7 @@ fn move_ang(index: usize,
         let dof = angles_vec.len();
         angles_vec[index % dof] += rot;
     }
-    for (lj, angle) in robot
-            .map(&|ljn_ref| ljn_ref.clone())
-            .iter()
-            .zip(angles_vec.iter()) {
-        let _ = lj.borrow_mut().data.set_joint_angle(*angle);
-    }
+    nk::set_joint_angles(robot, angles_vec);
 }
 
 fn main() {
@@ -55,27 +49,28 @@ fn main() {
                  .help("Use assimp instead of meshlab to convert .dae to .obj for visualization"))
         .get_matches();
     let mesh_convert = if matches.is_present("assimp") {
-        urdf_vis::MeshConvert::Assimp
+        urdf_viz::MeshConvert::Assimp
     } else {
-        urdf_vis::MeshConvert::Meshlab
+        urdf_viz::MeshConvert::Meshlab
     };
 
     let arg_input = matches.value_of("input").unwrap();
-    let urdf_file_path;
-    let urdf_path;
+    let abs_urdf_path;
     let input_path = Path::new(&arg_input);
-    if input_path.extension().unwrap() == "xacro" {
-        urdf_file_path = format!("/tmp/urdf_vis/{}",
-                                 &input_path.with_extension("urdf").to_str().unwrap());
-        urdf_path = Path::new(&urdf_file_path);
-        urdf_vis::convert_xacro_to_urdf(input_path, urdf_path).unwrap();
+    let urdf_path = if input_path.extension().unwrap() == "xacro" {
+        abs_urdf_path = format!("/tmp/urdf_viz/{}",
+                                input_path.with_extension("urdf").to_str().unwrap());
+        let tmp_urdf_path = Path::new(&abs_urdf_path);
+        info!("tmp urdf path = {}", tmp_urdf_path.to_str().unwrap());
+        urdf_viz::convert_xacro_to_urdf(&input_path, &tmp_urdf_path).unwrap();
+        tmp_urdf_path
     } else {
-        urdf_path = input_path;
-    }
+        input_path
+    };
 
     let urdf_robo = urdf_rs::read_file(&urdf_path).unwrap();
     let mut robot = nk_urdf::create_tree::<f32>(&urdf_robo);
-    let mut viewer = urdf_vis::Viewer::new(urdf_robo);
+    let mut viewer = urdf_viz::Viewer::new(urdf_robo);
     viewer.setup(mesh_convert);
     let base_transform =
         na::Isometry3::from_parts(na::Translation3::new(0.0, 0.0, 0.0),
