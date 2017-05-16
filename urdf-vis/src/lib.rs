@@ -23,6 +23,7 @@ extern crate log;
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
 use regex::Regex;
+use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 
@@ -160,6 +161,55 @@ pub fn add_geometry(visual: &urdf_rs::Visual,
         None => return None,
     }
     geom
+}
+
+pub struct Viewer {
+    pub window: kiss3d::window::Window,
+    pub urdf_robot: urdf_rs::Robot,
+    pub scenes: HashMap<String, SceneNode>,
+    pub arc_ball: kiss3d::camera::ArcBall,
+}
+
+impl Viewer {
+    pub fn new(urdf_robot: urdf_rs::Robot) -> Viewer {
+        let eye = na::Point3::new(0.5f32, 1.0, -3.0);
+        let at = na::Point3::new(0.0f32, 0.25, 0.0);
+        Viewer {
+            window: kiss3d::window::Window::new("urdf_viewer"),
+            urdf_robot: urdf_robot,
+            scenes: HashMap::new(),
+            arc_ball: kiss3d::camera::ArcBall::new(eye, at),
+        }
+    }
+    pub fn setup(&mut self, mesh_convert: MeshConvert) {
+        self.window
+            .set_light(kiss3d::light::Light::StickToCamera);
+        for l in &self.urdf_robot.links {
+            self.scenes
+                .insert(l.name.to_string(),
+                        add_geometry(&l.visual, &mesh_convert, &mut self.window).unwrap());
+        }
+    }
+    pub fn render(&mut self) -> bool {
+        self.window.render_with_camera(&mut self.arc_ball)
+    }
+    pub fn update(&mut self, robot: &mut nk::LinkedJointTree<f32>) {
+        for (trans, link_name) in
+            robot
+                .calc_link_transforms()
+                .iter()
+                .zip(robot.map(&|ljn_ref| ljn_ref.borrow().data.name.clone())) {
+            match self.scenes.get_mut(&link_name) {
+                Some(obj) => obj.set_local_transformation(*trans),
+                None => {
+                    println!("{} not found", link_name);
+                }
+            }
+        }
+    }
+    pub fn events(&self) -> kiss3d::window::EventManager {
+        self.window.events()
+    }
 }
 
 #[test]

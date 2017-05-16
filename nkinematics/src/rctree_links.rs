@@ -98,6 +98,29 @@ impl<T: Real> LinkedJointTree<T> {
     }
 }
 
+pub fn create_kinematic_chains<T>(tree: &LinkedJointTree<T>) -> Vec<RefKinematicChain<T>>
+    where T: Real
+{
+    tree.map(&|ljn_ref| if ljn_ref.borrow().children.is_empty() {
+                  Some(ljn_ref.clone())
+              } else {
+                  None
+              })
+        .iter()
+        .filter_map(|ljn_ref_opt| match *ljn_ref_opt {
+                        Some(ref ljn_ref) => {
+            let kc = RefKinematicChain::new(&ljn_ref.borrow().data.name, ljn_ref);
+            if kc.get_joint_angles().len() >= 6 {
+                Some(kc)
+            } else {
+                None
+            }
+        }
+                        None => None,
+                    })
+        .collect::<Vec<_>>()
+}
+
 #[test]
 fn it_works() {
     let l0 = LinkedJointBuilder::new()
