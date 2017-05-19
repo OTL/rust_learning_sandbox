@@ -1,0 +1,29 @@
+[package]
+name = "urdf-viz-ros"
+version = "0.1.0"
+authors = ["Takashi Ogura <t.ogura@gmail.com>"]
+
+[dependencies]
+
+alga = "0.5.1"
+clap = "*"
+env_logger = "0.4.2"
+glfw = "0.8.0" # required by kiss3d
+kiss3d = "0.8.0"
+log = "0.3"
+nalgebra = "0.11.0"
+nkinematics = { version = "0.1.0", path = "../../nkinematics" }
+nkinematics-urdf = { version = "0.1.0",  path = "../../nkinematics/nkinematics-urdf" }
+regex = "0.1"
+rosrust = "0.5.0"
+serde = "1.0.2"
+serde_derive = "1.0.2"
+urdf-rs = "0.1.5"
+urdf-viz = { version = "0.1.0", path = ".." }
+
+[[bin]]
+name = "uviz"
+path = "src/uviz.rs"
+
+[build-dependencies]
+rosrust = "0.5.0"

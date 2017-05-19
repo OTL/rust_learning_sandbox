@@ -61,7 +61,6 @@ fn main() {
         abs_urdf_path = format!("/tmp/urdf_viz/{}",
                                 input_path.with_extension("urdf").to_str().unwrap());
         let tmp_urdf_path = Path::new(&abs_urdf_path);
-        info!("tmp urdf path = {}", tmp_urdf_path.to_str().unwrap());
         urdf_viz::convert_xacro_to_urdf(&input_path, &tmp_urdf_path).unwrap();
         tmp_urdf_path
     } else {
