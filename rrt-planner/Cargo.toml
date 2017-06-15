@@ -1,0 +1,12 @@
+[package]
+name = "rrt-planner"
+version = "0.1.0"
+authors = ["Takashi Ogura <t.ogura@gmail.com>"]
+
+[dependencies]
+alga = "*"
+nalgebra = "*"
+num-traits = "*"
+rand = "*"
+log = "*"
+env_logger = "*"
