@@ -4,9 +4,10 @@ version = "0.1.0"
 authors = ["Takashi Ogura <t.ogura@gmail.com>"]
 
 [dependencies]
-alga = "*"
-nalgebra = "*"
-num-traits = "*"
+#alga = "*"
+#nalgebra = "*"
+#num-traits = "*"
+kdtree = "*"
 rand = "*"
 log = "*"
 env_logger = "*"
