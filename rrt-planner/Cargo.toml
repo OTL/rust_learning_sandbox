@@ -1,5 +1,5 @@
 [package]
-name = "rrt-planner"
+name = "path_plan"
 version = "0.1.0"
 authors = ["Takashi Ogura <t.ogura@gmail.com>"]
 
@@ -12,3 +12,10 @@ clippy = { version = "*", optional = true }
 
 [features]
 default = []
+
+[dev-dependencies]
+approx   = "*"
+alga     = "*"
+nalgebra = "*"
+ncollide = "*"
+kiss3d = "*"

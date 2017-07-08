@@ -37,14 +37,16 @@ pub struct Tree {
     pub dim: usize,
     pub kdtree: kdtree::KdTree<usize, Vec<f64>>,
     pub vertices: Vec<Node<Vec<f64>>>,
+    pub name: String,
 }
 
 impl Tree {
-    pub fn new(dim: usize) -> Self {
+    pub fn new(name: &str, dim: usize) -> Self {
         Tree {
             dim: dim,
             kdtree: kdtree::KdTree::new(dim),
             vertices: Vec::new(),
+            name: name.to_string(),
         }
     }
     pub fn add_vertex(&mut self, q: &[f64]) -> usize {
@@ -60,7 +62,7 @@ impl Tree {
         *self.kdtree.nearest(q, 1, &squared_euclidean).unwrap()[0].1
     }
     pub fn extend<P>(&mut self, q_target: &[f64], extend_length: f64, problem: &P) -> ExtendStatus
-        where P: Problem + RandomSample
+        where P: Space + RandomSample
     {
         assert!(extend_length > 0.0);
         let nearest_id = self.get_nearest_id(q_target);
@@ -89,7 +91,7 @@ impl Tree {
         ExtendStatus::Trapped
     }
     pub fn connect<P>(&mut self, q_target: &[f64], extend_length: f64, problem: &P) -> ExtendStatus
-        where P: Problem + RandomSample
+        where P: Space + RandomSample
     {
         loop {
             info!("connecting...{:?}", q_target);
@@ -111,7 +113,7 @@ impl Tree {
     }
 }
 
-pub trait Problem {
+pub trait Space {
     fn is_feasible(&self, point: &[f64]) -> bool;
 }
 
@@ -125,11 +127,11 @@ pub fn dual_rrt_connect<P>(start: &[f64],
                            problem: &P,
                            num_max_try: usize)
                            -> Result<Vec<Vec<f64>>, String>
-    where P: Problem + RandomSample
+    where P: Space + RandomSample
 {
     assert_eq!(start.len(), goal.len());
-    let mut tree_a = Tree::new(start.len());
-    let mut tree_b = Tree::new(start.len());
+    let mut tree_a = Tree::new("start", start.len());
+    let mut tree_b = Tree::new("goal", start.len());
     tree_a.add_vertex(start);
     tree_b.add_vertex(goal);
     for _ in 0..num_max_try {
@@ -149,6 +151,9 @@ pub fn dual_rrt_connect<P>(start: &[f64],
                     let mut b_all = tree_b.get_until_root(reach_id);
                     a_all.reverse();
                     a_all.append(&mut b_all);
+                    if tree_b.name == "start" {
+                        a_all.reverse();
+                    }
                     return Ok(a_all);
                 }
             }
@@ -164,7 +169,7 @@ fn it_works() {
     use rand::distributions::{IndependentSample, Range};
     pub struct BoxProblem {}
 
-    impl Problem for BoxProblem {
+    impl Space for BoxProblem {
         fn is_feasible(&self, point: &[f64]) -> bool {
             !(point[0].abs() < 1.0 && point[1].abs() < 1.0)
         }
