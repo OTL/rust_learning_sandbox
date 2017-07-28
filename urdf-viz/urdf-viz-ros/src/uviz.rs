@@ -2,8 +2,8 @@ extern crate alga;
 extern crate clap;
 extern crate env_logger;
 extern crate nalgebra as na;
-extern crate nkinematics as nk;
-extern crate nkinematics_urdf as nk_urdf;
+extern crate k as nk;
+extern crate k_urdf as nk_urdf;
 extern crate urdf_rs;
 extern crate urdf_viz;
 

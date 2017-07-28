@@ -3,8 +3,8 @@ extern crate clap;
 extern crate env_logger;
 extern crate glfw;
 extern crate nalgebra as na;
-extern crate nkinematics as nk;
-extern crate nkinematics_urdf as nk_urdf;
+extern crate k as nk;
+extern crate k_urdf as nk_urdf;
 extern crate urdf_rs;
 extern crate urdf_viz;
 
@@ -23,7 +23,7 @@ static NATIVE_MOD: glfw::Modifiers = glfw::Control;
 fn move_ang(index: usize,
             rot: f32,
             angles_vec: &mut Vec<f32>,
-            robot: &mut nk::LinkedJointTree<f32>) {
+            robot: &mut nk::JointWithLinkTree<f32>) {
     if index == 0 {
         for ang in angles_vec.iter_mut() {
             *ang += rot;

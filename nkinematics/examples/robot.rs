@@ -1,7 +1,7 @@
 extern crate kiss3d;
-extern crate nkinematics;
+extern crate k;
 extern crate alga;
-use nkinematics::*;
+use k::*;
 use kiss3d::window::Window;
 use kiss3d::scene::SceneNode;
 use kiss3d::light::Light;
@@ -10,21 +10,21 @@ use alga::general::Real;
 extern crate nalgebra as na;
 use na::{Isometry3, Vector3, UnitQuaternion, Translation3};
 
-fn create_linked_frame(name: &str) -> LinkedFrame<f32> {
+fn create_joint_with_link_array(name: &str) -> JointWithLinkArray<f32> {
     let j1 = Joint::new("lj1", JointType::Rotational { axis: Vector3::x_axis() });
     let j2 = Joint::new("lj2", JointType::Linear { axis: Vector3::y_axis() });
     let j3 = Joint::new("lj3", JointType::Rotational { axis: Vector3::x_axis() });
-    let mut linked_joint1 = LinkedJoint::new("llink1", j1);
-    linked_joint1.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
-                                                    UnitQuaternion::identity());
-    let mut linked_joint2 = LinkedJoint::new("link2", j2);
-    linked_joint2.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
-                                                    UnitQuaternion::identity());
-    let mut linked_joint3 = LinkedJoint::new("link2", j3);
-    linked_joint3.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
-                                                    UnitQuaternion::identity());
-    LinkedFrame::new(name,
-                     vec![linked_joint1, linked_joint2, linked_joint3])
+    let mut joint_with_link1 = JointWithLink::new("llink1", j1);
+    joint_with_link1.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
+                                                       UnitQuaternion::identity());
+    let mut joint_with_link2 = JointWithLink::new("link2", j2);
+    joint_with_link2.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
+                                                       UnitQuaternion::identity());
+    let mut joint_with_link3 = JointWithLink::new("link2", j3);
+    joint_with_link3.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
+                                                       UnitQuaternion::identity());
+    JointWithLinkArray::new(name,
+                            vec![joint_with_link1, joint_with_link2, joint_with_link3])
 }
 
 fn create_cubes(window: &mut Window) -> Vec<SceneNode> {
@@ -40,23 +40,23 @@ fn create_cubes(window: &mut Window) -> Vec<SceneNode> {
 }
 
 fn main() {
-    let mut lleg = create_linked_frame("left_leg");
+    let mut lleg = create_joint_with_link_array("left_leg");
     lleg.transform = Isometry3::from_parts(Translation3::new(0.2, 0.2, 0.0),
                                            UnitQuaternion::identity());
 
-    let mut rleg = create_linked_frame("right_leg");
+    let mut rleg = create_joint_with_link_array("right_leg");
     rleg.transform = Isometry3::from_parts(Translation3::new(-0.2, 0.2, 0.0),
                                            UnitQuaternion::identity());
-    let mut larm = create_linked_frame("left_arm");
+    let mut larm = create_joint_with_link_array("left_arm");
     larm.transform = Isometry3::from_parts(Translation3::new(0.2, -0.2, 0.0),
                                            UnitQuaternion::identity());
-    let mut rarm = create_linked_frame("right_arm");
+    let mut rarm = create_joint_with_link_array("right_arm");
     rarm.transform = Isometry3::from_parts(Translation3::new(-0.2, -0.2, 0.0),
                                            UnitQuaternion::identity());
 
-    let mut rf = RobotFrame::new("robo", vec![lleg, rleg, larm, rarm]);
+    let mut rf = JointWithLinkStar::new("robo", vec![lleg, rleg, larm, rarm]);
 
-    let mut window = Window::new("nkinematics ui");
+    let mut window = Window::new("k ui");
     window.set_light(Light::StickToCamera);
     let mut cubes = vec![create_cubes(&mut window),
                          create_cubes(&mut window),

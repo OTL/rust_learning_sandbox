@@ -1,8 +1,8 @@
-# nkinematics
+# k
 
 Kinematics (forward/inverse) library using [nalgebra](http://nalgebra.org).
 
-It uses RobotFrame structure to handle joints and links.
+It uses JointWithLinkStar structure to handle joints and links.
 See examples/ for more details.
 
 ## Enjoy example at first!!
@@ -26,4 +26,4 @@ Push below keys to move the end of the manipulator.
 
 ## URDF
 
-You can use URDF file to build your robot model using `nkinematics-urdf` crate.
+You can use URDF file to build your robot model using `k-urdf` crate.

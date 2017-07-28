@@ -5,25 +5,25 @@ use alga::general::Real;
 use links::*;
 use rctree::*;
 
-pub type RefLinkedJointNode<T> = RefNode<LinkedJoint<T>>;
-pub type LinkedJointNode<T> = Node<LinkedJoint<T>>;
+pub type RefJointWithLinkNode<T> = RefNode<JointWithLink<T>>;
+pub type JointWithLinkNode<T> = Node<JointWithLink<T>>;
 
-/// Kinematic chain using `Rc<RefCell<LinkedJointNode<T>>>`
+/// Kinematic chain using `Rc<RefCell<JointWithLinkNode<T>>>`
 pub struct RefKinematicChain<T: Real> {
     pub name: String,
-    pub linked_joints: Vec<RefLinkedJointNode<T>>,
+    pub joint_with_links: Vec<RefJointWithLinkNode<T>>,
     pub transform: Isometry3<T>,
 }
 
 impl<T> RefKinematicChain<T>
     where T: Real
 {
-    pub fn new(name: &str, end: &RefLinkedJointNode<T>) -> Self {
+    pub fn new(name: &str, end: &RefJointWithLinkNode<T>) -> Self {
         let mut links = map_ancestors(end, &|ljn| ljn.clone());
         links.reverse();
         RefKinematicChain {
             name: name.to_string(),
-            linked_joints: links,
+            joint_with_links: links,
             transform: Isometry3::identity(),
         }
     }
@@ -33,14 +33,14 @@ impl<T> KinematicChain<T> for RefKinematicChain<T>
     where T: Real
 {
     fn calc_end_transform(&self) -> Isometry3<T> {
-        self.linked_joints
+        self.joint_with_links
             .iter()
             .fold(self.transform,
                   |trans, ljn_ref| trans * ljn_ref.borrow().data.calc_transform())
     }
     fn set_joint_angles(&mut self, angles: &[T]) -> Result<(), JointError> {
         // TODO: is it possible to cache the joint_with_angle to speed up?
-        let mut joints_with_angle = self.linked_joints
+        let mut joints_with_angle = self.joint_with_links
             .iter_mut()
             .filter(|ljn_ref| ljn_ref.borrow().data.has_joint_angle())
             .collect::<Vec<_>>();
@@ -53,22 +53,22 @@ impl<T> KinematicChain<T> for RefKinematicChain<T>
         Ok(())
     }
     fn get_joint_angles(&self) -> Vec<T> {
-        self.linked_joints
+        self.joint_with_links
             .iter()
             .filter_map(|ljn_ref| ljn_ref.borrow().data.get_joint_angle())
             .collect()
     }
 }
 
-/// Kinematic Tree using `Rc<RefCell<LinkedJoint<T>>>`
-pub struct LinkedJointTree<T: Real> {
+/// Kinematic Tree using `Rc<RefCell<JointWithLink<T>>>`
+pub struct JointWithLinkTree<T: Real> {
     pub name: String,
-    pub root_link: RefLinkedJointNode<T>,
+    pub root_link: RefJointWithLinkNode<T>,
 }
 
-impl<T: Real> LinkedJointTree<T> {
-    pub fn new(name: &str, root_link: RefLinkedJointNode<T>) -> Self {
-        LinkedJointTree {
+impl<T: Real> JointWithLinkTree<T> {
+    pub fn new(name: &str, root_link: RefJointWithLinkNode<T>) -> Self {
+        JointWithLinkTree {
             name: name.to_string(),
             root_link: root_link,
         }
@@ -92,13 +92,13 @@ impl<T: Real> LinkedJointTree<T> {
         })
     }
     pub fn map<F, K>(&self, func: &F) -> Vec<K>
-        where F: Fn(&RefLinkedJointNode<T>) -> K
+        where F: Fn(&RefJointWithLinkNode<T>) -> K
     {
         map_descendants(&self.root_link, func)
     }
 }
 
-pub fn create_kinematic_chains<T>(tree: &LinkedJointTree<T>) -> Vec<RefKinematicChain<T>>
+pub fn create_kinematic_chains<T>(tree: &JointWithLinkTree<T>) -> Vec<RefKinematicChain<T>>
     where T: Real
 {
     tree.map(&|ljn_ref| if ljn_ref.borrow().children.is_empty() {
@@ -121,7 +121,7 @@ pub fn create_kinematic_chains<T>(tree: &LinkedJointTree<T>) -> Vec<RefKinematic
         .collect::<Vec<_>>()
 }
 
-pub fn set_joint_angles<T>(robot: &mut LinkedJointTree<T>, angles_vec: &Vec<T>)
+pub fn set_joint_angles<T>(robot: &mut JointWithLinkTree<T>, angles_vec: &Vec<T>)
     where T: Real
 {
     // TODO: check the length
@@ -135,32 +135,32 @@ pub fn set_joint_angles<T>(robot: &mut LinkedJointTree<T>, angles_vec: &Vec<T>)
 
 #[test]
 fn it_works() {
-    let l0 = LinkedJointBuilder::new()
+    let l0 = JointWithLinkBuilder::new()
         .name("link1")
         .translation(na::Translation3::new(0.0, 0.1, 0.0))
         .joint("j0", JointType::Rotational { axis: na::Vector3::y_axis() })
         .finalize();
-    let l1 = LinkedJointBuilder::new()
+    let l1 = JointWithLinkBuilder::new()
         .name("link1")
         .translation(na::Translation3::new(0.0, 0.1, 0.1))
         .joint("j1", JointType::Rotational { axis: na::Vector3::y_axis() })
         .finalize();
-    let l2 = LinkedJointBuilder::new()
+    let l2 = JointWithLinkBuilder::new()
         .name("link1")
         .translation(na::Translation3::new(0.0, 0.1, 0.1))
         .joint("j2", JointType::Rotational { axis: na::Vector3::y_axis() })
         .finalize();
-    let l3 = LinkedJointBuilder::new()
+    let l3 = JointWithLinkBuilder::new()
         .name("link3")
         .translation(na::Translation3::new(0.0, 0.1, 0.2))
         .joint("j3", JointType::Rotational { axis: na::Vector3::y_axis() })
         .finalize();
-    let l4 = LinkedJointBuilder::new()
+    let l4 = JointWithLinkBuilder::new()
         .name("link4")
         .translation(na::Translation3::new(0.0, 0.1, 0.1))
         .joint("j4", JointType::Rotational { axis: na::Vector3::y_axis() })
         .finalize();
-    let l5 = LinkedJointBuilder::new()
+    let l5 = JointWithLinkBuilder::new()
         .name("link5")
         .translation(na::Translation3::new(0.0, 0.1, 0.1))
         .joint("j5", JointType::Rotational { axis: na::Vector3::y_axis() })
@@ -183,7 +183,7 @@ fn it_works() {
     let angles = map_descendants(&ljn0, &|ljn| ljn.borrow().data.get_joint_angle());
     println!("angles = {:?}", angles);
 
-    let get_z = |ljn: &RefLinkedJointNode<f32>| match ljn.borrow().parent {
+    let get_z = |ljn: &RefJointWithLinkNode<f32>| match ljn.borrow().parent {
         Some(ref parent) => {
             let rc_parent = parent.upgrade().unwrap().clone();
             let parent_obj = rc_parent.borrow();

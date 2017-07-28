@@ -1,6 +1,6 @@
 extern crate alga;
 extern crate nalgebra as na;
-extern crate nkinematics as nk;
+extern crate k as nk;
 
 #[cfg(test)]
 mod test {

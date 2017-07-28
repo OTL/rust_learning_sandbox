@@ -3,62 +3,62 @@
 //!
 //! # Examples
 //!
-//! Build `LinkedFrame` using `LinkedJointBuilder` at first.
+//! Build `JointWithLinkArray` using `JointWithLinkBuilder` at first.
 //! Instead of using the builder, You can use `URDF` format
 //! by `nkinamtics-urdf` cate if you want.
 //!
 //! ```
-//! extern crate nkinematics;
+//! extern crate k;
 //! extern crate nalgebra;
 //!
-//! use nkinematics::{LinkedFrame, LinkedJointBuilder, JointType,
+//! use k::{JointWithLinkArray, JointWithLinkBuilder, JointType,
 //!                   KinematicChain, JacobianIKSolverBuilder,
 //!                   InverseKinematicsSolver};
 //! use nalgebra::{Vector3, Translation3};
 //!
 //! fn main() {
-//!   let l0 = LinkedJointBuilder::new()
+//!   let l0 = JointWithLinkBuilder::new()
 //!       .name("shoulder_link1")
 //!       .joint("shoulder_pitch",
 //!              JointType::Rotational { axis: Vector3::y_axis() })
 //!       .finalize();
-//!   let l1 = LinkedJointBuilder::new()
+//!   let l1 = JointWithLinkBuilder::new()
 //!       .name("shoulder_link2")
 //!       .joint("shoulder_roll",
 //!              JointType::Rotational { axis: Vector3::x_axis() })
 //!       .translation(Translation3::new(0.0, 0.1, 0.0))
 //!       .finalize();
-//!   let l2 = LinkedJointBuilder::new()
+//!   let l2 = JointWithLinkBuilder::new()
 //!       .name("shoulder_link3")
 //!       .joint("shoulder_yaw",
 //!              JointType::Rotational { axis: Vector3::z_axis() })
 //!       .translation(Translation3::new(0.0, 0.0, -0.30))
 //!       .finalize();
-//!   let l3 = LinkedJointBuilder::new()
+//!   let l3 = JointWithLinkBuilder::new()
 //!       .name("elbow_link1")
 //!       .joint("elbow_pitch",
 //!              JointType::Rotational { axis: Vector3::y_axis() })
 //!       .translation(Translation3::new(0.0, 0.0, -0.15))
 //!       .finalize();
-//!   let l4 = LinkedJointBuilder::new()
+//!   let l4 = JointWithLinkBuilder::new()
 //!       .name("wrist_link1")
 //!       .joint("wrist_yaw",
 //!              JointType::Rotational { axis: Vector3::z_axis() })
 //!       .translation(Translation3::new(0.0, 0.0, -0.15))
 //!       .finalize();
-//!   let l5 = LinkedJointBuilder::new()
+//!   let l5 = JointWithLinkBuilder::new()
 //!       .name("wrist_link2")
 //!       .joint("wrist_pitch",
 //!              JointType::Rotational { axis: Vector3::y_axis() })
 //!       .translation(Translation3::new(0.0, 0.0, -0.15))
 //!       .finalize();
-//!   let l6 = LinkedJointBuilder::new()
+//!   let l6 = JointWithLinkBuilder::new()
 //!       .name("wrist_link3")
 //!       .joint("wrist_roll",
 //!              JointType::Rotational { axis: Vector3::x_axis() })
 //!       .translation(Translation3::new(0.0, 0.0, -0.10))
 //!       .finalize();
-//!   let mut arm = LinkedFrame::new("arm", vec![l0, l1, l2, l3, l4, l5, l6]);
+//!   let mut arm = JointWithLinkArray::new("arm", vec![l0, l1, l2, l3, l4, l5, l6]);
 //!
 //!   // set joint angles
 //!   let angles = vec![0.8, 0.2, 0.0, -1.5, 0.0, -0.3, 0.0];

@@ -2,7 +2,7 @@ extern crate alga;
 extern crate glfw;
 extern crate kiss3d;
 extern crate nalgebra as na;
-extern crate nkinematics;
+extern crate k;
 
 use glfw::{Action, WindowEvent, Key};
 use kiss3d::camera::ArcBall;
@@ -10,52 +10,51 @@ use kiss3d::light::Light;
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
 use na::{Isometry3, Vector3, Translation3, UnitQuaternion, Point3};
-use nkinematics::*;
+use k::*;
 
-fn create_linked_frame(name: &str) -> LinkedFrame<f32> {
-    let l0 = LinkedJointBuilder::new()
+fn create_joint_with_link_array(name: &str) -> JointWithLinkArray<f32> {
+    let l0 = JointWithLinkBuilder::new()
         .name("shoulder_link1")
         .joint("shoulder_pitch",
                JointType::Rotational { axis: Vector3::y_axis() })
         .finalize();
-    let l1 = LinkedJointBuilder::new()
+    let l1 = JointWithLinkBuilder::new()
         .name("shoulder_link2")
         .joint("shoulder_roll",
                JointType::Rotational { axis: Vector3::x_axis() })
         .translation(Translation3::new(0.0, 0.1, 0.0))
         .finalize();
-    let l2 = LinkedJointBuilder::new()
+    let l2 = JointWithLinkBuilder::new()
         .name("shoulder_link3")
         .joint("shoulder_yaw",
                JointType::Rotational { axis: Vector3::z_axis() })
         .translation(Translation3::new(0.0, 0.0, -0.30))
         .finalize();
-    let l3 = LinkedJointBuilder::new()
+    let l3 = JointWithLinkBuilder::new()
         .name("elbow_link1")
         .joint("elbow_pitch",
                JointType::Rotational { axis: Vector3::y_axis() })
         .translation(Translation3::new(0.0, 0.0, -0.15))
         .finalize();
-    let l4 = LinkedJointBuilder::new()
+    let l4 = JointWithLinkBuilder::new()
         .name("wrist_link1")
         .joint("wrist_yaw",
                JointType::Rotational { axis: Vector3::z_axis() })
         .translation(Translation3::new(0.0, 0.0, -0.15))
         .finalize();
-    let l5 = LinkedJointBuilder::new()
+    let l5 = JointWithLinkBuilder::new()
         .name("wrist_link2")
         .joint("wrist_pitch",
                JointType::Rotational { axis: Vector3::y_axis() })
         .translation(Translation3::new(0.0, 0.0, -0.15))
         .finalize();
-    let l6 = LinkedJointBuilder::new()
+    let l6 = JointWithLinkBuilder::new()
         .name("wrist_link3")
         .joint("wrist_roll",
                JointType::Rotational { axis: Vector3::x_axis() })
         .translation(Translation3::new(0.0, 0.0, -0.10))
         .finalize();
-    LinkedFrame::new(name,
-                     vec![l0, l1, l2, l3, l4, l5, l6])
+    JointWithLinkArray::new(name, vec![l0, l1, l2, l3, l4, l5, l6])
 }
 
 fn create_ground(window: &mut Window) -> Vec<SceneNode> {
@@ -101,17 +100,18 @@ fn create_cubes(window: &mut Window) -> Vec<SceneNode> {
 }
 
 fn main() {
-    let mut arm = create_linked_frame("arm");
+    let mut arm = create_joint_with_link_array("arm");
 
-    let mut window = Window::new("nkinematics ui");
+    let mut window = Window::new("k ui");
     window.set_light(Light::StickToCamera);
     let mut cubes = create_cubes(&mut window);
     let angles = vec![0.8, 0.2, 0.0, -1.5, 0.0, -0.3, 0.0];
     arm.set_joint_angles(&angles).unwrap();
     let base_rot = Isometry3::from_parts(Translation3::new(0.0, 0.0, 0.0),
                                          UnitQuaternion::from_euler_angles(0.0, -1.57, -1.57));
-    arm.transform = base_rot * Isometry3::from_parts(Translation3::new(0.0, 0.0, 0.6),
-                                                     UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0));
+    arm.transform = base_rot *
+                    Isometry3::from_parts(Translation3::new(0.0, 0.0, 0.6),
+                                          UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0));
     let mut target = arm.calc_end_transform();
 
     let mut c_t = window.add_sphere(0.05);
@@ -132,14 +132,14 @@ fn main() {
                             // reset
                             arm.set_joint_angles(&angles).unwrap();
                             target = arm.calc_end_transform();
-                        },
+                        }
                         Key::F => target.translation.vector[2] += 0.1,
                         Key::B => target.translation.vector[2] -= 0.1,
                         Key::R => target.translation.vector[0] -= 0.1,
                         Key::L => target.translation.vector[0] += 0.1,
                         Key::P => target.translation.vector[1] += 0.1,
                         Key::N => target.translation.vector[1] -= 0.1,
-                        _ => {},
+                        _ => {}
                     }
                     event.inhibited = true // override the default keyboard handler
                 }
