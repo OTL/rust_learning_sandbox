@@ -79,12 +79,15 @@
 
 extern crate alga;
 extern crate nalgebra as na;
+#[macro_use]
+extern crate log;
 
 mod links;
 mod ik;
 mod math;
 mod rctree;
 mod rctree_links;
+pub mod urdf;
 
 pub use self::links::*;
 pub use self::ik::*;

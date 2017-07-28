@@ -293,11 +293,11 @@ impl<T> Joint<T>
 ///
 /// ```
 /// extern crate nalgebra as na;
-/// extern crate k as nk;
-/// let l0 = nk::JointWithLinkBuilder::new()
+/// extern crate k;
+/// let l0 = k::JointWithLinkBuilder::new()
 ///     .name("link1")
 ///     .translation(na::Translation3::new(0.0, 0.1, 0.0))
-///     .joint("link_pitch", nk::JointType::Rotational{axis: na::Vector3::y_axis()})
+///     .joint("link_pitch", k::JointType::Rotational{axis: na::Vector3::y_axis()})
 ///     .finalize();
 /// println!("{:?}", l0);
 /// ```

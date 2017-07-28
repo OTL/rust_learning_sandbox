@@ -1,10 +1,10 @@
 extern crate nalgebra as na;
-extern crate k as nk;
 extern crate urdf_rs;
 extern crate alga;
 
-#[macro_use]
-extern crate log;
+use links::*;
+use rctree::*;
+use rctree_links::*;
 
 use alga::general::Real;
 use std::collections::HashMap;
@@ -34,20 +34,20 @@ pub fn translation_from<T>(array3: [f64; 3]) -> na::Translation3<T>
 }
 
 
-pub fn create_joint_with_link_from_urdf_joint<T>(joint: &urdf_rs::Joint) -> nk::JointWithLink<T>
+pub fn create_joint_with_link_from_urdf_joint<T>(joint: &urdf_rs::Joint) -> JointWithLink<T>
     where T: Real
 {
-    nk::JointWithLinkBuilder::<T>::new()
+    JointWithLinkBuilder::<T>::new()
         .joint(&joint.name,
                match joint.joint_type {
                    urdf_rs::JointType::Revolute |
                    urdf_rs::JointType::Continuous => {
-                       nk::JointType::Rotational { axis: axis_from(joint.axis.xyz) }
+                       JointType::Rotational { axis: axis_from(joint.axis.xyz) }
                    }
                    urdf_rs::JointType::Prismatic => {
-                       nk::JointType::Linear { axis: axis_from(joint.axis.xyz) }
+                       JointType::Linear { axis: axis_from(joint.axis.xyz) }
                    }
-                   _ => nk::JointType::Fixed,
+                   _ => JointType::Fixed,
                })
         .name(&joint.child.link)
         .rotation(quaternion_from(joint.origin.rpy))
@@ -82,7 +82,7 @@ pub fn get_root_link_name(robot: &urdf_rs::Robot) -> String {
     parent_link_name.to_string()
 }
 
-pub fn create_robot<T>(robot: &urdf_rs::Robot) -> nk::JointWithLinkStar<T>
+pub fn create_robot<T>(robot: &urdf_rs::Robot) -> JointWithLinkStar<T>
     where T: Real
 {
     // find end links
@@ -103,35 +103,35 @@ pub fn create_robot<T>(robot: &urdf_rs::Robot) -> nk::JointWithLinkStar<T>
         link_map.remove(&joint.parent.link);
     }
     // link_map contains end links only here
-    nk::JointWithLinkStar::new(&robot.name,
-                        link_map
-                            .keys()
-                            .map(|end_name| {
-                                     get_joint_until_root(end_name, &child_joint_map)
+    JointWithLinkStar::new(&robot.name,
+                           link_map
+                               .keys()
+                               .map(|end_name| {
+                                        get_joint_until_root(end_name, &child_joint_map)
                                          .iter()
                                          .map(|urdf_joint| {
                                                   create_joint_with_link_from_urdf_joint(urdf_joint)
                                               })
                                          .collect()
-                                 })
-                            .map(|link_vec| nk::JointWithLinkArray::new("", link_vec))
-                            .collect())
+                                    })
+                               .map(|link_vec| JointWithLinkArray::new("", link_vec))
+                               .collect())
 }
 
-pub fn create_tree<T>(robot: &urdf_rs::Robot) -> nk::JointWithLinkTree<T>
+pub fn create_tree<T>(robot: &urdf_rs::Robot) -> JointWithLinkTree<T>
     where T: Real
 {
     let root_name = get_root_link_name(robot);
     let mut ref_nodes = Vec::new();
     let mut child_ref_map = HashMap::new();
-    let mut parent_ref_map = HashMap::<&String, Vec<nk::RefJointWithLinkNode<T>>>::new();
+    let mut parent_ref_map = HashMap::<&String, Vec<RefJointWithLinkNode<T>>>::new();
 
-    let root_node = nk::create_ref_node(nk::JointWithLinkBuilder::<T>::new()
-                                            .joint("root", nk::JointType::Fixed)
-                                            .name(&root_name)
-                                            .finalize());
+    let root_node = create_ref_node(JointWithLinkBuilder::<T>::new()
+                                        .joint("root", JointType::Fixed)
+                                        .name(&root_name)
+                                        .finalize());
     for j in &robot.joints {
-        let node = nk::create_ref_node(create_joint_with_link_from_urdf_joint(j));
+        let node = create_ref_node(create_joint_with_link_from_urdf_joint(j));
         child_ref_map.insert(&j.child.link, node.clone());
         if parent_ref_map.get(&j.parent.link).is_some() {
             parent_ref_map
@@ -151,7 +151,7 @@ pub fn create_tree<T>(robot: &urdf_rs::Robot) -> nk::JointWithLinkTree<T>
                     info!("set paremt = {}, child = {}",
                           parent_node.borrow().data.get_joint_name(),
                           child_node.borrow().data.get_joint_name());
-                    nk::set_parent_child(parent_node, child_node);
+                    set_parent_child(parent_node, child_node);
                 }
             }
         }
@@ -164,10 +164,10 @@ pub fn create_tree<T>(robot: &urdf_rs::Robot) -> nk::JointWithLinkTree<T>
                         Some(_) => None,
                     });
     for rjn in root_joint_nodes {
-        nk::set_parent_child(&root_node, rjn);
+        set_parent_child(&root_node, rjn);
     }
     // create root node..
-    nk::JointWithLinkTree::new(&robot.name, root_node)
+    JointWithLinkTree::new(&robot.name, root_node)
 }
 
 #[test]

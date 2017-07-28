@@ -14,13 +14,13 @@ fn create_joint_with_link_array(name: &str) -> JointWithLinkArray<f32> {
     let j1 = Joint::new("lj1", JointType::Rotational { axis: Vector3::x_axis() });
     let j2 = Joint::new("lj2", JointType::Linear { axis: Vector3::y_axis() });
     let j3 = Joint::new("lj3", JointType::Rotational { axis: Vector3::x_axis() });
-    let mut joint_with_link1 = JointWithLink::new("llink1", j1);
+    let mut joint_with_link1 = JointWithLik::new("llink1", j1);
     joint_with_link1.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
                                                        UnitQuaternion::identity());
-    let mut joint_with_link2 = JointWithLink::new("link2", j2);
+    let mut joint_with_link2 = JointWithLik::new("link2", j2);
     joint_with_link2.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
                                                        UnitQuaternion::identity());
-    let mut joint_with_link3 = JointWithLink::new("link2", j3);
+    let mut joint_with_link3 = JointWithLik::new("link2", j3);
     joint_with_link3.transform = Isometry3::from_parts(Translation3::new(0.0, 0.2, 0.0),
                                                        UnitQuaternion::identity());
     JointWithLinkArray::new(name,
