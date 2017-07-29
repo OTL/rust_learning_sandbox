@@ -2,9 +2,9 @@
 
 Kinematics library using [nalgebra](http://nalgebra.org) for rust-lang.
 
-See [Document]("http://docs.rs/k") and examples/ for more details.
+See [Document](http://docs.rs/k) and examples/ for more details.
 
-* [Document]("http://docs.rs/k")
+* [Document](http://docs.rs/k)
 
 ## Enjoy an IK example
 
