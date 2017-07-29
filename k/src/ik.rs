@@ -60,6 +60,7 @@ pub trait InverseKinematicsSolver<T: Real> {
 }
 
 
+/// Inverse Kinematics Solver using Jacobian matrix
 #[derive(Debug)]
 pub struct JacobianIKSolver<T: Real> {
     pub jacobian_move_epsilon: T,

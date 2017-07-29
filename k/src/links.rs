@@ -5,7 +5,7 @@ use na::{Isometry3, Vector3, Unit, UnitQuaternion, Translation3};
 use std::error::Error;
 use std::fmt;
 
-
+/// Type of Joint, `Fixed`, `Rotational`, `Linear` is supported now
 #[derive(Copy, Debug, Clone)]
 pub enum JointType<T: Real> {
     /// Fixed joitn
@@ -42,23 +42,23 @@ impl Error for JointError {
 
 
 
-/// Robot representation with set of `LinkedFrame`s
+/// Robot representation with set of `VecKinematicChain`s
 ///
-/// This contains multiple `LinkedFrame`.
+/// This contains multiple `VecKinematicChain`.
 /// The frames must be serial without branch.
 /// root is the only link which has branch.
 #[derive(Debug, Clone)]
-pub struct RobotFrame<T: Real> {
+pub struct LinkStar<T: Real> {
     pub name: String,
-    pub frames: Vec<LinkedFrame<T>>,
+    pub frames: Vec<VecKinematicChain<T>>,
     transform: Isometry3<T>,
 }
 
-impl<T> RobotFrame<T>
+impl<T> LinkStar<T>
     where T: Real
 {
-    pub fn new(name: &str, frames: Vec<LinkedFrame<T>>) -> RobotFrame<T> {
-        RobotFrame {
+    pub fn new(name: &str, frames: Vec<VecKinematicChain<T>>) -> LinkStar<T> {
+        LinkStar {
             name: name.to_string(),
             frames: frames,
             transform: Isometry3::identity(),
@@ -95,32 +95,32 @@ pub trait KinematicChain<T>
 ///
 /// imagine below structure
 ///
-/// `[transform] -> linked_joints([[joint] -> [Link]] -> [[joint] -> [Link]] -> ...)`
+/// `[transform] -> joint_with_links([[joint] -> [Link]] -> [[joint] -> [Link]] -> ...)`
 ///
 /// The order must be ordered.
 ///
 /// - start from root link
 /// - end with last link
 #[derive(Debug, Clone)]
-pub struct LinkedFrame<T: Real> {
+pub struct VecKinematicChain<T: Real> {
     pub name: String,
-    pub linked_joints: Vec<LinkedJoint<T>>,
+    pub joint_with_links: Vec<Link<T>>,
     pub transform: Isometry3<T>,
 }
 
-impl<T> LinkedFrame<T>
+impl<T> VecKinematicChain<T>
     where T: Real
 {
-    pub fn new(name: &str, linked_joints: Vec<LinkedJoint<T>>) -> LinkedFrame<T> {
-        LinkedFrame {
+    pub fn new(name: &str, joint_with_links: Vec<Link<T>>) -> VecKinematicChain<T> {
+        VecKinematicChain {
             name: name.to_string(),
-            linked_joints: linked_joints,
+            joint_with_links: joint_with_links,
             transform: Isometry3::identity(),
         }
     }
     /// returns transforms of links
     pub fn calc_link_transforms(&self) -> Vec<Isometry3<T>> {
-        self.linked_joints
+        self.joint_with_links
             .iter()
             .scan(self.transform, |base, lj| {
                 *base *= lj.calc_transform();
@@ -129,18 +129,18 @@ impl<T> LinkedFrame<T>
             .collect()
     }
     pub fn len(&self) -> usize {
-        self.linked_joints.len()
+        self.joint_with_links.len()
     }
     pub fn is_empty(&self) -> bool {
-        self.linked_joints.is_empty()
+        self.joint_with_links.is_empty()
     }
 }
 
-impl<T> KinematicChain<T> for LinkedFrame<T>
+impl<T> KinematicChain<T> for VecKinematicChain<T>
     where T: Real
 {
     fn calc_end_transform(&self) -> Isometry3<T> {
-        self.linked_joints
+        self.joint_with_links
             .iter()
             .fold(self.transform, |trans, lj| trans * lj.calc_transform())
     }
@@ -148,7 +148,7 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
     /// if failed, joints angles are non determined,
     fn set_joint_angles(&mut self, angles: &[T]) -> Result<(), JointError> {
         // TODO: is it possible to cache the joint_with_angle to speed up?
-        let mut joints_with_angle = self.linked_joints
+        let mut joints_with_angle = self.joint_with_links
             .iter_mut()
             .filter(|lj| lj.has_joint_angle())
             .collect::<Vec<_>>();
@@ -162,9 +162,9 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
         Ok(())
     }
     fn get_joint_angles(&self) -> Vec<T> {
-        self.linked_joints
+        self.joint_with_links
             .iter()
-            .filter_map(|linked_joint| linked_joint.get_joint_angle())
+            .filter_map(|joint_with_link| joint_with_link.get_joint_angle())
             .collect()
     }
 }
@@ -172,7 +172,7 @@ impl<T> KinematicChain<T> for LinkedFrame<T>
 /// Joint and Link
 ///
 #[derive(Debug, Clone)]
-pub struct LinkedJoint<T: Real> {
+pub struct Link<T: Real> {
     pub name: String,
     /// joint instance
     pub joint: Joint<T>,
@@ -182,14 +182,14 @@ pub struct LinkedJoint<T: Real> {
     pub world_transform_cache: Option<Isometry3<T>>,
 }
 
-impl<T> LinkedJoint<T>
+impl<T> Link<T>
     where T: Real
 {
-    /// Construct a LinkedJoint from name and joint instance
+    /// Construct a Link from name and joint instance
     ///
-    /// You can use LinkedJointBuilder<T> if you want.
-    pub fn new(name: &str, joint: Joint<T>) -> LinkedJoint<T> {
-        LinkedJoint {
+    /// You can use LinkBuilder<T> if you want.
+    pub fn new(name: &str, joint: Joint<T>) -> Link<T> {
+        Link {
             name: name.to_string(),
             joint: joint,
             transform: Isometry3::identity(),
@@ -216,6 +216,7 @@ impl<T> LinkedJoint<T>
     }
 }
 
+/// min/max range to check the joint position
 #[derive(Clone, Debug)]
 pub struct Range<T: Real> {
     pub min: T,
@@ -287,59 +288,59 @@ impl<T> Joint<T>
 }
 
 
-/// Build a `LinkedJoint<T>`
+/// Build a `Link<T>`
 ///
 /// # Examples
 ///
 /// ```
 /// extern crate nalgebra as na;
-/// extern crate nkinematics as nk;
-/// let l0 = nk::LinkedJointBuilder::new()
+/// extern crate k;
+/// let l0 = k::LinkBuilder::new()
 ///     .name("link1")
 ///     .translation(na::Translation3::new(0.0, 0.1, 0.0))
-///     .joint("link_pitch", nk::JointType::Rotational{axis: na::Vector3::y_axis()})
+///     .joint("link_pitch", k::JointType::Rotational{axis: na::Vector3::y_axis()})
 ///     .finalize();
 /// println!("{:?}", l0);
 /// ```
 #[derive(Debug, Clone)]
-pub struct LinkedJointBuilder<T: Real> {
+pub struct LinkBuilder<T: Real> {
     name: String,
     joint: Joint<T>,
     transform: Isometry3<T>,
 }
 
-impl<T> LinkedJointBuilder<T>
+impl<T> LinkBuilder<T>
     where T: Real
 {
-    pub fn new() -> LinkedJointBuilder<T> {
-        LinkedJointBuilder {
+    pub fn new() -> LinkBuilder<T> {
+        LinkBuilder {
             name: "".to_string(),
             joint: Joint::new("", JointType::Fixed),
             transform: Isometry3::identity(),
         }
     }
-    pub fn name(mut self, name: &str) -> LinkedJointBuilder<T> {
+    pub fn name(mut self, name: &str) -> LinkBuilder<T> {
         self.name = name.to_string();
         self
     }
-    pub fn joint(mut self, name: &str, joint_type: JointType<T>) -> LinkedJointBuilder<T> {
+    pub fn joint(mut self, name: &str, joint_type: JointType<T>) -> LinkBuilder<T> {
         self.joint = Joint::new(name, joint_type);
         self
     }
-    pub fn transform(mut self, transform: Isometry3<T>) -> LinkedJointBuilder<T> {
+    pub fn transform(mut self, transform: Isometry3<T>) -> LinkBuilder<T> {
         self.transform = transform;
         self
     }
-    pub fn translation(mut self, translation: Translation3<T>) -> LinkedJointBuilder<T> {
+    pub fn translation(mut self, translation: Translation3<T>) -> LinkBuilder<T> {
         self.transform.translation = translation;
         self
     }
-    pub fn rotation(mut self, rotation: UnitQuaternion<T>) -> LinkedJointBuilder<T> {
+    pub fn rotation(mut self, rotation: UnitQuaternion<T>) -> LinkBuilder<T> {
         self.transform.rotation = rotation;
         self
     }
-    pub fn finalize(self) -> LinkedJoint<T> {
-        LinkedJoint {
+    pub fn finalize(self) -> Link<T> {
+        Link {
             name: self.name,
             joint: self.joint,
             transform: self.transform,

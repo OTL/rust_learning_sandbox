@@ -13,8 +13,7 @@ extern crate alga;
 extern crate glfw;
 extern crate kiss3d;
 extern crate nalgebra as na;
-extern crate nkinematics as nk;
-extern crate nkinematics_urdf as nk_urdf;
+extern crate k;
 extern crate regex;
 extern crate urdf_rs;
 #[macro_use]
@@ -200,7 +199,7 @@ impl Viewer {
     pub fn render(&mut self) -> bool {
         self.window.render_with_camera(&mut self.arc_ball)
     }
-    pub fn update(&mut self, robot: &mut nk::LinkedJointTree<f32>) {
+    pub fn update(&mut self, robot: &mut k::LinkTree<f32>) {
         for (trans, link_name) in
             robot
                 .calc_link_transforms()

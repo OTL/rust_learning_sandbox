@@ -3,15 +3,14 @@ extern crate clap;
 extern crate env_logger;
 extern crate glfw;
 extern crate nalgebra as na;
-extern crate nkinematics as nk;
-extern crate nkinematics_urdf as nk_urdf;
+extern crate k;
 extern crate urdf_rs;
 extern crate urdf_viz;
 
 use clap::{Arg, App};
 use glfw::{Action, WindowEvent, Key};
-use nk::InverseKinematicsSolver;
-use nk::KinematicChain;
+use k::InverseKinematicsSolver;
+use k::KinematicChain;
 use std::path::Path;
 
 #[cfg(target_os = "macos")]
@@ -20,10 +19,7 @@ static NATIVE_MOD: glfw::Modifiers = glfw::Super;
 #[cfg(not(target_os = "macos"))]
 static NATIVE_MOD: glfw::Modifiers = glfw::Control;
 
-fn move_ang(index: usize,
-            rot: f32,
-            angles_vec: &mut Vec<f32>,
-            robot: &mut nk::LinkedJointTree<f32>) {
+fn move_ang(index: usize, rot: f32, angles_vec: &mut Vec<f32>, robot: &mut k::LinkTree<f32>) {
     if index == 0 {
         for ang in angles_vec.iter_mut() {
             *ang += rot;
@@ -32,7 +28,7 @@ fn move_ang(index: usize,
         let dof = angles_vec.len();
         angles_vec[index % dof] += rot;
     }
-    nk::set_joint_angles(robot, angles_vec);
+    robot.set_joint_angles(angles_vec);
 }
 
 fn main() {
@@ -68,17 +64,17 @@ fn main() {
     };
 
     let urdf_robo = urdf_rs::read_file(&urdf_path).unwrap();
-    let mut robot = nk_urdf::create_tree::<f32>(&urdf_robo);
+    let mut robot = k::urdf::create_tree::<f32>(&urdf_robo);
     let mut viewer = urdf_viz::Viewer::new(urdf_robo);
     viewer.setup(mesh_convert);
     let base_transform =
         na::Isometry3::from_parts(na::Translation3::new(0.0, 0.0, 0.0),
                                   na::UnitQuaternion::from_euler_angles(0.0, 1.57, 1.57));
     robot.root_link.borrow_mut().data.transform = base_transform;
-    let mut arms = nk::create_kinematic_chains(&robot);
+    let mut arms = k::create_kinematic_chains(&robot);
     let num_arms = arms.len();
     println!("num_arms = {}", num_arms);
-    let solver = nk::JacobianIKSolverBuilder::new().finalize();
+    let solver = k::JacobianIKSolverBuilder::new().finalize();
 
     let dof = robot
         .map(&|ljn_ref| ljn_ref.borrow().data.get_joint_angle())
