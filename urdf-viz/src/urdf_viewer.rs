@@ -31,7 +31,7 @@ fn move_ang(index: usize,
         let dof = angles_vec.len();
         angles_vec[index % dof] += rot;
     }
-    k::set_joint_angles(robot, angles_vec);
+    robot.set_joint_angles(angles_vec);
 }
 
 fn main() {

@@ -21,11 +21,13 @@ impl<T> Node<T> {
     }
 }
 
+/// set parent and child relations at same time
 pub fn set_parent_child<T>(parent: &RefNode<T>, child: &RefNode<T>) {
     child.borrow_mut().parent = Some(Rc::downgrade(parent));
     parent.borrow_mut().children.push(child.clone());
 }
 
+/// Wrap data: T with RC<RefCell<Node<T>>
 pub fn create_ref_node<T>(data: T) -> RefNode<T> {
     Rc::new(RefCell::new(Node::new(data)))
 }

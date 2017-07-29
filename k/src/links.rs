@@ -216,6 +216,7 @@ impl<T> JointWithLink<T>
     }
 }
 
+/// min/max range to check the joint position
 #[derive(Clone, Debug)]
 pub struct Range<T: Real> {
     pub min: T,

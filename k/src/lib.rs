@@ -1,11 +1,41 @@
-//! Kinematics(forward/inverse) library using [nalgebra](http://nalgebra.org).
+//! # Kinematics(forward/inverse) library using [nalgebra](http://nalgebra.org).
+//!
+//! `k` has below functionalities
+//!
+//! 1. Forward kinematics
+//! 1. Inverse kinematics
+//! 1. URDF Loader
+//!
+//! ## Forward Kinematics
+//!
+//! If you deal robot arm without any branches, you can use `JointWithLinkArray`,
+//! which is just a Vec of `JointWithLink`. If you need to deal more complexed
+//! link structure, you have two choices now.
+//!
+//! `k` has two representation for kinematic chain.
+//!
+//! 1. `JointWithLinkTree`
+//! 1. `JointWithLinkStar`
+//!
+//! ### `JointWithLinkTree`
+//!
+//! `JointWithLinkTree` uses `Rc<RefCell<Node<T>>>` to handle tree structure.
+//! It can deal complete tree sctuctures, but has lost the safety of rust,
+//! and it has runtime costs.
+//!
+//! ### `JointWithLinkStar`
+//!
+//! `JointWithLinkStar` has very simple structure, Vec of Vec of JointWithLink.
+//! This is thread safe and fast, but it is not a tree, it has star structure.
+//! It means that it can deal humanoid with four limbs without fingers,
+//! but it cannot have branches in the limbs like fingers. Only root has branches.
 //!
 //!
 //! # Examples
 //!
 //! Build `JointWithLinkArray` using `JointWithLinkBuilder` at first.
 //! Instead of using the builder, You can use `URDF` format
-//! by `nkinamtics-urdf` cate if you want.
+//! by `urdf` module if you want.
 //!
 //! ```
 //! extern crate k;
@@ -84,13 +114,11 @@ extern crate log;
 
 mod links;
 mod ik;
-mod math;
-mod rctree;
+pub mod math;
+pub mod rctree;
 mod rctree_links;
 pub mod urdf;
 
 pub use self::links::*;
 pub use self::ik::*;
-pub use self::math::*;
-pub use self::rctree::*;
 pub use self::rctree_links::*;

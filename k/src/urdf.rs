@@ -1,3 +1,4 @@
+//! # Load [URDF](http://wiki.ros.org/urdf) format and create `k::JointWithLinTree`
 extern crate nalgebra as na;
 extern crate urdf_rs;
 extern crate alga;
@@ -9,7 +10,7 @@ use rctree_links::*;
 use alga::general::Real;
 use std::collections::HashMap;
 
-pub fn axis_from<T>(array3: [f64; 3]) -> na::Unit<na::Vector3<T>>
+fn axis_from<T>(array3: [f64; 3]) -> na::Unit<na::Vector3<T>>
     where T: Real
 {
     na::Unit::<_>::new_normalize(na::Vector3::new(na::convert(array3[0]),
@@ -17,7 +18,7 @@ pub fn axis_from<T>(array3: [f64; 3]) -> na::Unit<na::Vector3<T>>
                                                   na::convert(array3[2])))
 }
 
-pub fn quaternion_from<T>(array3: [f64; 3]) -> na::UnitQuaternion<T>
+fn quaternion_from<T>(array3: [f64; 3]) -> na::UnitQuaternion<T>
     where T: Real
 {
     na::UnitQuaternion::from_euler_angles(na::convert(array3[0]),
@@ -25,7 +26,7 @@ pub fn quaternion_from<T>(array3: [f64; 3]) -> na::UnitQuaternion<T>
                                           na::convert(array3[2]))
 }
 
-pub fn translation_from<T>(array3: [f64; 3]) -> na::Translation3<T>
+fn translation_from<T>(array3: [f64; 3]) -> na::Translation3<T>
     where T: Real
 {
     na::Translation3::new(na::convert(array3[0]),
@@ -34,7 +35,7 @@ pub fn translation_from<T>(array3: [f64; 3]) -> na::Translation3<T>
 }
 
 
-pub fn create_joint_with_link_from_urdf_joint<T>(joint: &urdf_rs::Joint) -> JointWithLink<T>
+fn create_joint_with_link_from_urdf_joint<T>(joint: &urdf_rs::Joint) -> JointWithLink<T>
     where T: Real
 {
     JointWithLinkBuilder::<T>::new()
@@ -68,7 +69,7 @@ fn get_joint_until_root<'a, 'b>(end_name: &'a str,
     ret
 }
 
-pub fn get_root_link_name(robot: &urdf_rs::Robot) -> String {
+fn get_root_link_name(robot: &urdf_rs::Robot) -> String {
     let mut child_joint_map = HashMap::<&str, &urdf_rs::Joint>::new();
     for j in &robot.joints {
         if let Some(old) = child_joint_map.insert(&j.child.link, j) {
@@ -82,7 +83,24 @@ pub fn get_root_link_name(robot: &urdf_rs::Robot) -> String {
     parent_link_name.to_string()
 }
 
-pub fn create_robot<T>(robot: &urdf_rs::Robot) -> JointWithLinkStar<T>
+/// create `JointWithLinkStar` from URDF robot instance
+///
+/// # Examples
+///
+/// ```
+/// extern crate urdf_rs;
+/// extern crate k;
+/// fn main() {
+///   let robo = urdf_rs::read_file("sample.urdf").unwrap();
+///   assert_eq!(robo.name, "robo");
+///   assert_eq!(robo.links.len(), 1 + 6 + 6);
+///   let rf = k::urdf::create_star::<f32>(&robo);
+///   assert_eq!(rf.frames.len(), 2);
+///   assert_eq!(rf.frames[0].len(), 6);
+///   assert_eq!(rf.frames[1].len(), 6);
+/// }
+/// ```
+pub fn create_star<T>(robot: &urdf_rs::Robot) -> JointWithLinkStar<T>
     where T: Real
 {
     // find end links
@@ -118,6 +136,21 @@ pub fn create_robot<T>(robot: &urdf_rs::Robot) -> JointWithLinkStar<T>
                                .collect())
 }
 
+/// create `JointWithLinkTree` from URDF robot instance
+///
+/// # Examples
+///
+/// ```
+/// extern crate urdf_rs;
+/// extern crate k;
+/// fn main() {
+///   let robo = urdf_rs::read_file("sample.urdf").unwrap();
+///   assert_eq!(robo.name, "robo");
+///   assert_eq!(robo.links.len(), 1 + 6 + 6);
+///   let tree = k::urdf::create_tree::<f32>(&robo);
+///   assert_eq!(tree.map(&|ref_joint| ref_joint.clone()).len(), 13);
+/// }
+/// ```
 pub fn create_tree<T>(robot: &urdf_rs::Robot) -> JointWithLinkTree<T>
     where T: Real
 {
@@ -171,17 +204,15 @@ pub fn create_tree<T>(robot: &urdf_rs::Robot) -> JointWithLinkTree<T>
 }
 
 #[test]
-fn it_works() {
+fn test_star() {
     let robo = urdf_rs::read_file("sample.urdf").unwrap();
     assert_eq!(robo.name, "robo");
     assert_eq!(robo.links.len(), 1 + 6 + 6);
 
-    let rf = create_robot::<f32>(&robo);
+    let rf = create_star::<f32>(&robo);
     assert_eq!(rf.frames.len(), 2);
     assert_eq!(rf.frames[0].len(), 6);
     assert_eq!(rf.frames[1].len(), 6);
-
-    assert_eq!(get_root_link_name(&robo), "root".to_string());
 }
 
 #[test]

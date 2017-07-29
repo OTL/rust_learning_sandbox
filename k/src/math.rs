@@ -7,7 +7,7 @@ use na::allocator::Allocator;
 
 use na::storage::Storage;
 
-/// create 6 elements vector to show position and orientation
+/// create rpy angles from quaternion
 pub fn to_euler_angles<T: Real>(q: &UnitQuaternion<T>) -> Vector3<T> {
     let x = q[0];
     let y = q[1];

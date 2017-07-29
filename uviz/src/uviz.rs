@@ -92,7 +92,7 @@ fn main() {
                    })
         .unwrap();
     while viewer.render() {
-        k::set_joint_angles(&mut robot, &angles_vec_copy.lock().unwrap());
+        robot.set_joint_angles(&angles_vec_copy.lock().unwrap());
         for (vel_mutex, arm) in end_vel_map.iter().zip(arms.iter_mut()) {
             let vel = vel_mutex.lock().unwrap();
             if vel[0].abs() > 0.01 || vel[1].abs() > 0.01 || vel[2].abs() > 0.01 {
