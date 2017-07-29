@@ -8,7 +8,7 @@
 //!
 //! ## Forward Kinematics
 //!
-//! If you deal robot arm without any branches, you can use `JointWithLinkArray`,
+//! If you deal robot arm without any branches, you can use `VecKinematicChain`,
 //! which is just a Vec of `JointWithLink`. If you need to deal more complexed
 //! link structure, you have two choices now.
 //!
@@ -33,7 +33,7 @@
 //!
 //! # Examples
 //!
-//! Build `JointWithLinkArray` using `JointWithLinkBuilder` at first.
+//! Build `VecKinematicChain` using `JointWithLinkBuilder` at first.
 //! Instead of using the builder, You can use `URDF` format
 //! by `urdf` module if you want.
 //!
@@ -41,7 +41,7 @@
 //! extern crate k;
 //! extern crate nalgebra;
 //!
-//! use k::{JointWithLinkArray, JointWithLinkBuilder, JointType,
+//! use k::{VecKinematicChain, JointWithLinkBuilder, JointType,
 //!                   KinematicChain, JacobianIKSolverBuilder,
 //!                   InverseKinematicsSolver};
 //! use nalgebra::{Vector3, Translation3};
@@ -88,7 +88,7 @@
 //!              JointType::Rotational { axis: Vector3::x_axis() })
 //!       .translation(Translation3::new(0.0, 0.0, -0.10))
 //!       .finalize();
-//!   let mut arm = JointWithLinkArray::new("arm", vec![l0, l1, l2, l3, l4, l5, l6]);
+//!   let mut arm = VecKinematicChain::new("arm", vec![l0, l1, l2, l3, l4, l5, l6]);
 //!
 //!   // set joint angles
 //!   let angles = vec![0.8, 0.2, 0.0, -1.5, 0.0, -0.3, 0.0];

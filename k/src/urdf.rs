@@ -132,7 +132,7 @@ pub fn create_star<T>(robot: &urdf_rs::Robot) -> JointWithLinkStar<T>
                                               })
                                          .collect()
                                     })
-                               .map(|link_vec| JointWithLinkArray::new("", link_vec))
+                               .map(|link_vec| VecKinematicChain::new("", link_vec))
                                .collect())
 }
 

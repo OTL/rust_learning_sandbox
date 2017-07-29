@@ -42,22 +42,22 @@ impl Error for JointError {
 
 
 
-/// Robot representation with set of `JointWithLinkArray`s
+/// Robot representation with set of `VecKinematicChain`s
 ///
-/// This contains multiple `JointWithLinkArray`.
+/// This contains multiple `VecKinematicChain`.
 /// The frames must be serial without branch.
 /// root is the only link which has branch.
 #[derive(Debug, Clone)]
 pub struct JointWithLinkStar<T: Real> {
     pub name: String,
-    pub frames: Vec<JointWithLinkArray<T>>,
+    pub frames: Vec<VecKinematicChain<T>>,
     transform: Isometry3<T>,
 }
 
 impl<T> JointWithLinkStar<T>
     where T: Real
 {
-    pub fn new(name: &str, frames: Vec<JointWithLinkArray<T>>) -> JointWithLinkStar<T> {
+    pub fn new(name: &str, frames: Vec<VecKinematicChain<T>>) -> JointWithLinkStar<T> {
         JointWithLinkStar {
             name: name.to_string(),
             frames: frames,
@@ -102,17 +102,17 @@ pub trait KinematicChain<T>
 /// - start from root link
 /// - end with last link
 #[derive(Debug, Clone)]
-pub struct JointWithLinkArray<T: Real> {
+pub struct VecKinematicChain<T: Real> {
     pub name: String,
     pub joint_with_links: Vec<JointWithLink<T>>,
     pub transform: Isometry3<T>,
 }
 
-impl<T> JointWithLinkArray<T>
+impl<T> VecKinematicChain<T>
     where T: Real
 {
-    pub fn new(name: &str, joint_with_links: Vec<JointWithLink<T>>) -> JointWithLinkArray<T> {
-        JointWithLinkArray {
+    pub fn new(name: &str, joint_with_links: Vec<JointWithLink<T>>) -> VecKinematicChain<T> {
+        VecKinematicChain {
             name: name.to_string(),
             joint_with_links: joint_with_links,
             transform: Isometry3::identity(),
@@ -136,7 +136,7 @@ impl<T> JointWithLinkArray<T>
     }
 }
 
-impl<T> KinematicChain<T> for JointWithLinkArray<T>
+impl<T> KinematicChain<T> for VecKinematicChain<T>
     where T: Real
 {
     fn calc_end_transform(&self) -> Isometry3<T> {

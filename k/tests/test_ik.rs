@@ -9,7 +9,7 @@ mod tests {
     use k::InverseKinematicsSolver;
     use k::KinematicChain;
 
-    pub fn create_joint_with_link_array6(name: &str) -> k::JointWithLinkArray<f32> {
+    pub fn create_joint_with_link_array6(name: &str) -> k::VecKinematicChain<f32> {
         let l0 = k::JointWithLinkBuilder::new()
             .name("shoulder_link1")
             .joint("shoulder_pitch",
@@ -45,11 +45,11 @@ mod tests {
                    k::JointType::Rotational { axis: Vector3::y_axis() })
             .translation(Translation3::new(0.0, 0.0, -0.15))
             .finalize();
-        k::JointWithLinkArray::new(name, vec![l0, l1, l2, l3, l4, l5])
+        k::VecKinematicChain::new(name, vec![l0, l1, l2, l3, l4, l5])
     }
 
 
-    pub fn create_joint_with_link_array7(name: &str) -> k::JointWithLinkArray<f32> {
+    pub fn create_joint_with_link_array7(name: &str) -> k::VecKinematicChain<f32> {
         let l0 = k::JointWithLinkBuilder::new()
             .name("shoulder_link1")
             .joint("shoulder_pitch",
@@ -91,7 +91,7 @@ mod tests {
                    k::JointType::Rotational { axis: Vector3::x_axis() })
             .translation(Translation3::new(0.0, 0.0, -0.10))
             .finalize();
-        k::JointWithLinkArray::new(name, vec![l0, l1, l2, l3, l4, l5, l6])
+        k::VecKinematicChain::new(name, vec![l0, l1, l2, l3, l4, l5, l6])
     }
 
     #[test]

@@ -12,7 +12,7 @@ use kiss3d::window::Window;
 use na::{Isometry3, Vector3, Translation3, UnitQuaternion, Point3};
 use k::*;
 
-fn create_joint_with_link_array(name: &str) -> JointWithLinkArray<f32> {
+fn create_joint_with_link_array(name: &str) -> VecKinematicChain<f32> {
     let l0 = JointWithLinkBuilder::new()
         .name("shoulder_link1")
         .joint("shoulder_pitch",
@@ -54,7 +54,7 @@ fn create_joint_with_link_array(name: &str) -> JointWithLinkArray<f32> {
                JointType::Rotational { axis: Vector3::x_axis() })
         .translation(Translation3::new(0.0, 0.0, -0.10))
         .finalize();
-    JointWithLinkArray::new(name, vec![l0, l1, l2, l3, l4, l5, l6])
+    VecKinematicChain::new(name, vec![l0, l1, l2, l3, l4, l5, l6])
 }
 
 fn create_ground(window: &mut Window) -> Vec<SceneNode> {
