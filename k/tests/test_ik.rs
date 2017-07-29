@@ -10,36 +10,36 @@ mod tests {
     use k::KinematicChain;
 
     pub fn create_joint_with_link_array6(name: &str) -> k::VecKinematicChain<f32> {
-        let l0 = k::JointWithLinkBuilder::new()
+        let l0 = k::LinkBuilder::new()
             .name("shoulder_link1")
             .joint("shoulder_pitch",
                    k::JointType::Rotational { axis: Vector3::y_axis() })
             .finalize();
-        let l1 = k::JointWithLinkBuilder::new()
+        let l1 = k::LinkBuilder::new()
             .name("shoulder_link2")
             .joint("shoulder_roll",
                    k::JointType::Rotational { axis: Vector3::x_axis() })
             .translation(Translation3::new(0.0, 0.1, 0.0))
             .finalize();
-        let l2 = k::JointWithLinkBuilder::new()
+        let l2 = k::LinkBuilder::new()
             .name("shoulder_link3")
             .joint("shoulder_yaw",
                    k::JointType::Rotational { axis: Vector3::z_axis() })
             .translation(Translation3::new(0.0, 0.0, -0.30))
             .finalize();
-        let l3 = k::JointWithLinkBuilder::new()
+        let l3 = k::LinkBuilder::new()
             .name("elbow_link1")
             .joint("elbow_pitch",
                    k::JointType::Rotational { axis: Vector3::y_axis() })
             .translation(Translation3::new(0.0, 0.0, -0.15))
             .finalize();
-        let l4 = k::JointWithLinkBuilder::new()
+        let l4 = k::LinkBuilder::new()
             .name("wrist_link1")
             .joint("wrist_yaw",
                    k::JointType::Rotational { axis: Vector3::z_axis() })
             .translation(Translation3::new(0.0, 0.0, -0.15))
             .finalize();
-        let l5 = k::JointWithLinkBuilder::new()
+        let l5 = k::LinkBuilder::new()
             .name("wrist_link2")
             .joint("wrist_pitch",
                    k::JointType::Rotational { axis: Vector3::y_axis() })
@@ -50,42 +50,42 @@ mod tests {
 
 
     pub fn create_joint_with_link_array7(name: &str) -> k::VecKinematicChain<f32> {
-        let l0 = k::JointWithLinkBuilder::new()
+        let l0 = k::LinkBuilder::new()
             .name("shoulder_link1")
             .joint("shoulder_pitch",
                    k::JointType::Rotational { axis: Vector3::y_axis() })
             .finalize();
-        let l1 = k::JointWithLinkBuilder::new()
+        let l1 = k::LinkBuilder::new()
             .name("shoulder_link2")
             .joint("shoulder_roll",
                    k::JointType::Rotational { axis: Vector3::x_axis() })
             .translation(Translation3::new(0.0, 0.1, 0.0))
             .finalize();
-        let l2 = k::JointWithLinkBuilder::new()
+        let l2 = k::LinkBuilder::new()
             .name("shoulder_link3")
             .joint("shoulder_yaw",
                    k::JointType::Rotational { axis: Vector3::z_axis() })
             .translation(Translation3::new(0.0, 0.0, -0.30))
             .finalize();
-        let l3 = k::JointWithLinkBuilder::new()
+        let l3 = k::LinkBuilder::new()
             .name("elbow_link1")
             .joint("elbow_pitch",
                    k::JointType::Rotational { axis: Vector3::y_axis() })
             .translation(Translation3::new(0.0, 0.0, -0.15))
             .finalize();
-        let l4 = k::JointWithLinkBuilder::new()
+        let l4 = k::LinkBuilder::new()
             .name("wrist_link1")
             .joint("wrist_yaw",
                    k::JointType::Rotational { axis: Vector3::z_axis() })
             .translation(Translation3::new(0.0, 0.0, -0.15))
             .finalize();
-        let l5 = k::JointWithLinkBuilder::new()
+        let l5 = k::LinkBuilder::new()
             .name("wrist_link2")
             .joint("wrist_pitch",
                    k::JointType::Rotational { axis: Vector3::y_axis() })
             .translation(Translation3::new(0.0, 0.0, -0.15))
             .finalize();
-        let l6 = k::JointWithLinkBuilder::new()
+        let l6 = k::LinkBuilder::new()
             .name("wrist_link3")
             .joint("wrist_roll",
                    k::JointType::Rotational { axis: Vector3::x_axis() })

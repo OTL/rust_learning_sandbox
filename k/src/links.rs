@@ -5,7 +5,7 @@ use na::{Isometry3, Vector3, Unit, UnitQuaternion, Translation3};
 use std::error::Error;
 use std::fmt;
 
-
+/// Type of Joint, `Fixed`, `Rotational`, `Linear` is supported now
 #[derive(Copy, Debug, Clone)]
 pub enum JointType<T: Real> {
     /// Fixed joitn
@@ -48,17 +48,17 @@ impl Error for JointError {
 /// The frames must be serial without branch.
 /// root is the only link which has branch.
 #[derive(Debug, Clone)]
-pub struct JointWithLinkStar<T: Real> {
+pub struct LinkStar<T: Real> {
     pub name: String,
     pub frames: Vec<VecKinematicChain<T>>,
     transform: Isometry3<T>,
 }
 
-impl<T> JointWithLinkStar<T>
+impl<T> LinkStar<T>
     where T: Real
 {
-    pub fn new(name: &str, frames: Vec<VecKinematicChain<T>>) -> JointWithLinkStar<T> {
-        JointWithLinkStar {
+    pub fn new(name: &str, frames: Vec<VecKinematicChain<T>>) -> LinkStar<T> {
+        LinkStar {
             name: name.to_string(),
             frames: frames,
             transform: Isometry3::identity(),
@@ -104,14 +104,14 @@ pub trait KinematicChain<T>
 #[derive(Debug, Clone)]
 pub struct VecKinematicChain<T: Real> {
     pub name: String,
-    pub joint_with_links: Vec<JointWithLink<T>>,
+    pub joint_with_links: Vec<Link<T>>,
     pub transform: Isometry3<T>,
 }
 
 impl<T> VecKinematicChain<T>
     where T: Real
 {
-    pub fn new(name: &str, joint_with_links: Vec<JointWithLink<T>>) -> VecKinematicChain<T> {
+    pub fn new(name: &str, joint_with_links: Vec<Link<T>>) -> VecKinematicChain<T> {
         VecKinematicChain {
             name: name.to_string(),
             joint_with_links: joint_with_links,
@@ -172,7 +172,7 @@ impl<T> KinematicChain<T> for VecKinematicChain<T>
 /// Joint and Link
 ///
 #[derive(Debug, Clone)]
-pub struct JointWithLink<T: Real> {
+pub struct Link<T: Real> {
     pub name: String,
     /// joint instance
     pub joint: Joint<T>,
@@ -182,14 +182,14 @@ pub struct JointWithLink<T: Real> {
     pub world_transform_cache: Option<Isometry3<T>>,
 }
 
-impl<T> JointWithLink<T>
+impl<T> Link<T>
     where T: Real
 {
-    /// Construct a JointWithLink from name and joint instance
+    /// Construct a Link from name and joint instance
     ///
-    /// You can use JointWithLinkBuilder<T> if you want.
-    pub fn new(name: &str, joint: Joint<T>) -> JointWithLink<T> {
-        JointWithLink {
+    /// You can use LinkBuilder<T> if you want.
+    pub fn new(name: &str, joint: Joint<T>) -> Link<T> {
+        Link {
             name: name.to_string(),
             joint: joint,
             transform: Isometry3::identity(),
@@ -288,14 +288,14 @@ impl<T> Joint<T>
 }
 
 
-/// Build a `JointWithLink<T>`
+/// Build a `Link<T>`
 ///
 /// # Examples
 ///
 /// ```
 /// extern crate nalgebra as na;
 /// extern crate k;
-/// let l0 = k::JointWithLinkBuilder::new()
+/// let l0 = k::LinkBuilder::new()
 ///     .name("link1")
 ///     .translation(na::Translation3::new(0.0, 0.1, 0.0))
 ///     .joint("link_pitch", k::JointType::Rotational{axis: na::Vector3::y_axis()})
@@ -303,44 +303,44 @@ impl<T> Joint<T>
 /// println!("{:?}", l0);
 /// ```
 #[derive(Debug, Clone)]
-pub struct JointWithLinkBuilder<T: Real> {
+pub struct LinkBuilder<T: Real> {
     name: String,
     joint: Joint<T>,
     transform: Isometry3<T>,
 }
 
-impl<T> JointWithLinkBuilder<T>
+impl<T> LinkBuilder<T>
     where T: Real
 {
-    pub fn new() -> JointWithLinkBuilder<T> {
-        JointWithLinkBuilder {
+    pub fn new() -> LinkBuilder<T> {
+        LinkBuilder {
             name: "".to_string(),
             joint: Joint::new("", JointType::Fixed),
             transform: Isometry3::identity(),
         }
     }
-    pub fn name(mut self, name: &str) -> JointWithLinkBuilder<T> {
+    pub fn name(mut self, name: &str) -> LinkBuilder<T> {
         self.name = name.to_string();
         self
     }
-    pub fn joint(mut self, name: &str, joint_type: JointType<T>) -> JointWithLinkBuilder<T> {
+    pub fn joint(mut self, name: &str, joint_type: JointType<T>) -> LinkBuilder<T> {
         self.joint = Joint::new(name, joint_type);
         self
     }
-    pub fn transform(mut self, transform: Isometry3<T>) -> JointWithLinkBuilder<T> {
+    pub fn transform(mut self, transform: Isometry3<T>) -> LinkBuilder<T> {
         self.transform = transform;
         self
     }
-    pub fn translation(mut self, translation: Translation3<T>) -> JointWithLinkBuilder<T> {
+    pub fn translation(mut self, translation: Translation3<T>) -> LinkBuilder<T> {
         self.transform.translation = translation;
         self
     }
-    pub fn rotation(mut self, rotation: UnitQuaternion<T>) -> JointWithLinkBuilder<T> {
+    pub fn rotation(mut self, rotation: UnitQuaternion<T>) -> LinkBuilder<T> {
         self.transform.rotation = rotation;
         self
     }
-    pub fn finalize(self) -> JointWithLink<T> {
-        JointWithLink {
+    pub fn finalize(self) -> Link<T> {
+        Link {
             name: self.name,
             joint: self.joint,
             transform: self.transform,

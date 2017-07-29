@@ -5,20 +5,20 @@ use alga::general::Real;
 use links::*;
 use rctree::*;
 
-pub type RefJointWithLinkNode<T> = RefNode<JointWithLink<T>>;
-pub type JointWithLinkNode<T> = Node<JointWithLink<T>>;
+pub type RefLinkNode<T> = RefNode<Link<T>>;
+pub type LinkNode<T> = Node<Link<T>>;
 
-/// Kinematic chain using `Rc<RefCell<JointWithLinkNode<T>>>`
+/// Kinematic chain using `Rc<RefCell<LinkNode<T>>>`
 pub struct RefKinematicChain<T: Real> {
     pub name: String,
-    pub joint_with_links: Vec<RefJointWithLinkNode<T>>,
+    pub joint_with_links: Vec<RefLinkNode<T>>,
     pub transform: Isometry3<T>,
 }
 
 impl<T> RefKinematicChain<T>
     where T: Real
 {
-    pub fn new(name: &str, end: &RefJointWithLinkNode<T>) -> Self {
+    pub fn new(name: &str, end: &RefLinkNode<T>) -> Self {
         let mut links = map_ancestors(end, &|ljn| ljn.clone());
         links.reverse();
         RefKinematicChain {
@@ -60,15 +60,15 @@ impl<T> KinematicChain<T> for RefKinematicChain<T>
     }
 }
 
-/// Kinematic Tree using `Rc<RefCell<JointWithLink<T>>>`
-pub struct JointWithLinkTree<T: Real> {
+/// Kinematic Tree using `Rc<RefCell<Link<T>>>`
+pub struct LinkTree<T: Real> {
     pub name: String,
-    pub root_link: RefJointWithLinkNode<T>,
+    pub root_link: RefLinkNode<T>,
 }
 
-impl<T: Real> JointWithLinkTree<T> {
-    pub fn new(name: &str, root_link: RefJointWithLinkNode<T>) -> Self {
-        JointWithLinkTree {
+impl<T: Real> LinkTree<T> {
+    pub fn new(name: &str, root_link: RefLinkNode<T>) -> Self {
+        LinkTree {
             name: name.to_string(),
             root_link: root_link,
         }
@@ -92,7 +92,7 @@ impl<T: Real> JointWithLinkTree<T> {
         })
     }
     pub fn map<F, K>(&self, func: &F) -> Vec<K>
-        where F: Fn(&RefJointWithLinkNode<T>) -> K
+        where F: Fn(&RefLinkNode<T>) -> K
     {
         map_descendants(&self.root_link, func)
     }
@@ -107,8 +107,8 @@ impl<T: Real> JointWithLinkTree<T> {
     }
 }
 
-/// Create Vec<RefKinematicChain> from JointWithLinkTree to use IK
-pub fn create_kinematic_chains<T>(tree: &JointWithLinkTree<T>) -> Vec<RefKinematicChain<T>>
+/// Create `Vec<RefKinematicChain>` from LinkTree to use IK
+pub fn create_kinematic_chains<T>(tree: &LinkTree<T>) -> Vec<RefKinematicChain<T>>
     where T: Real
 {
     tree.map(&|ljn_ref| if ljn_ref.borrow().children.is_empty() {
@@ -133,32 +133,32 @@ pub fn create_kinematic_chains<T>(tree: &JointWithLinkTree<T>) -> Vec<RefKinemat
 
 #[test]
 fn it_works() {
-    let l0 = JointWithLinkBuilder::new()
+    let l0 = LinkBuilder::new()
         .name("link1")
         .translation(na::Translation3::new(0.0, 0.1, 0.0))
         .joint("j0", JointType::Rotational { axis: na::Vector3::y_axis() })
         .finalize();
-    let l1 = JointWithLinkBuilder::new()
+    let l1 = LinkBuilder::new()
         .name("link1")
         .translation(na::Translation3::new(0.0, 0.1, 0.1))
         .joint("j1", JointType::Rotational { axis: na::Vector3::y_axis() })
         .finalize();
-    let l2 = JointWithLinkBuilder::new()
+    let l2 = LinkBuilder::new()
         .name("link1")
         .translation(na::Translation3::new(0.0, 0.1, 0.1))
         .joint("j2", JointType::Rotational { axis: na::Vector3::y_axis() })
         .finalize();
-    let l3 = JointWithLinkBuilder::new()
+    let l3 = LinkBuilder::new()
         .name("link3")
         .translation(na::Translation3::new(0.0, 0.1, 0.2))
         .joint("j3", JointType::Rotational { axis: na::Vector3::y_axis() })
         .finalize();
-    let l4 = JointWithLinkBuilder::new()
+    let l4 = LinkBuilder::new()
         .name("link4")
         .translation(na::Translation3::new(0.0, 0.1, 0.1))
         .joint("j4", JointType::Rotational { axis: na::Vector3::y_axis() })
         .finalize();
-    let l5 = JointWithLinkBuilder::new()
+    let l5 = LinkBuilder::new()
         .name("link5")
         .translation(na::Translation3::new(0.0, 0.1, 0.1))
         .joint("j5", JointType::Rotational { axis: na::Vector3::y_axis() })
@@ -181,7 +181,7 @@ fn it_works() {
     let angles = map_descendants(&ljn0, &|ljn| ljn.borrow().data.get_joint_angle());
     println!("angles = {:?}", angles);
 
-    let get_z = |ljn: &RefJointWithLinkNode<f32>| match ljn.borrow().parent {
+    let get_z = |ljn: &RefLinkNode<f32>| match ljn.borrow().parent {
         Some(ref parent) => {
             let rc_parent = parent.upgrade().unwrap().clone();
             let parent_obj = rc_parent.borrow();

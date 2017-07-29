@@ -19,10 +19,7 @@ static NATIVE_MOD: glfw::Modifiers = glfw::Super;
 #[cfg(not(target_os = "macos"))]
 static NATIVE_MOD: glfw::Modifiers = glfw::Control;
 
-fn move_ang(index: usize,
-            rot: f32,
-            angles_vec: &mut Vec<f32>,
-            robot: &mut k::JointWithLinkTree<f32>) {
+fn move_ang(index: usize, rot: f32, angles_vec: &mut Vec<f32>, robot: &mut k::LinkTree<f32>) {
     if index == 0 {
         for ang in angles_vec.iter_mut() {
             *ang += rot;

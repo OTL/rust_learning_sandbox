@@ -9,23 +9,23 @@
 //! ## Forward Kinematics
 //!
 //! If you deal robot arm without any branches, you can use `VecKinematicChain`,
-//! which is just a Vec of `JointWithLink`. If you need to deal more complexed
+//! which is just a Vec of `Link`. If you need to deal more complexed
 //! link structure, you have two choices now.
 //!
 //! `k` has two representation for kinematic chain.
 //!
-//! 1. `JointWithLinkTree`
-//! 1. `JointWithLinkStar`
+//! 1. `LinkTree`
+//! 1. `LinkStar`
 //!
-//! ### `JointWithLinkTree`
+//! ### `LinkTree`
 //!
-//! `JointWithLinkTree` uses `Rc<RefCell<Node<T>>>` to handle tree structure.
+//! `LinkTree` uses `Rc<RefCell<Node<T>>>` to handle tree structure.
 //! It can deal complete tree sctuctures, but has lost the safety of rust,
 //! and it has runtime costs.
 //!
-//! ### `JointWithLinkStar`
+//! ### `LinkStar`
 //!
-//! `JointWithLinkStar` has very simple structure, Vec of Vec of JointWithLink.
+//! `LinkStar` has very simple structure, Vec of Vec of Link.
 //! This is thread safe and fast, but it is not a tree, it has star structure.
 //! It means that it can deal humanoid with four limbs without fingers,
 //! but it cannot have branches in the limbs like fingers. Only root has branches.
@@ -33,7 +33,7 @@
 //!
 //! # Examples
 //!
-//! Build `VecKinematicChain` using `JointWithLinkBuilder` at first.
+//! Build `VecKinematicChain` using `LinkBuilder` at first.
 //! Instead of using the builder, You can use `URDF` format
 //! by `urdf` module if you want.
 //!
@@ -41,48 +41,48 @@
 //! extern crate k;
 //! extern crate nalgebra;
 //!
-//! use k::{VecKinematicChain, JointWithLinkBuilder, JointType,
+//! use k::{VecKinematicChain, LinkBuilder, JointType,
 //!                   KinematicChain, JacobianIKSolverBuilder,
 //!                   InverseKinematicsSolver};
 //! use nalgebra::{Vector3, Translation3};
 //!
 //! fn main() {
-//!   let l0 = JointWithLinkBuilder::new()
+//!   let l0 = LinkBuilder::new()
 //!       .name("shoulder_link1")
 //!       .joint("shoulder_pitch",
 //!              JointType::Rotational { axis: Vector3::y_axis() })
 //!       .finalize();
-//!   let l1 = JointWithLinkBuilder::new()
+//!   let l1 = LinkBuilder::new()
 //!       .name("shoulder_link2")
 //!       .joint("shoulder_roll",
 //!              JointType::Rotational { axis: Vector3::x_axis() })
 //!       .translation(Translation3::new(0.0, 0.1, 0.0))
 //!       .finalize();
-//!   let l2 = JointWithLinkBuilder::new()
+//!   let l2 = LinkBuilder::new()
 //!       .name("shoulder_link3")
 //!       .joint("shoulder_yaw",
 //!              JointType::Rotational { axis: Vector3::z_axis() })
 //!       .translation(Translation3::new(0.0, 0.0, -0.30))
 //!       .finalize();
-//!   let l3 = JointWithLinkBuilder::new()
+//!   let l3 = LinkBuilder::new()
 //!       .name("elbow_link1")
 //!       .joint("elbow_pitch",
 //!              JointType::Rotational { axis: Vector3::y_axis() })
 //!       .translation(Translation3::new(0.0, 0.0, -0.15))
 //!       .finalize();
-//!   let l4 = JointWithLinkBuilder::new()
+//!   let l4 = LinkBuilder::new()
 //!       .name("wrist_link1")
 //!       .joint("wrist_yaw",
 //!              JointType::Rotational { axis: Vector3::z_axis() })
 //!       .translation(Translation3::new(0.0, 0.0, -0.15))
 //!       .finalize();
-//!   let l5 = JointWithLinkBuilder::new()
+//!   let l5 = LinkBuilder::new()
 //!       .name("wrist_link2")
 //!       .joint("wrist_pitch",
 //!              JointType::Rotational { axis: Vector3::y_axis() })
 //!       .translation(Translation3::new(0.0, 0.0, -0.15))
 //!       .finalize();
-//!   let l6 = JointWithLinkBuilder::new()
+//!   let l6 = LinkBuilder::new()
 //!       .name("wrist_link3")
 //!       .joint("wrist_roll",
 //!              JointType::Rotational { axis: Vector3::x_axis() })

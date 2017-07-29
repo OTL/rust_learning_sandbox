@@ -199,7 +199,7 @@ impl Viewer {
     pub fn render(&mut self) -> bool {
         self.window.render_with_camera(&mut self.arc_ball)
     }
-    pub fn update(&mut self, robot: &mut k::JointWithLinkTree<f32>) {
+    pub fn update(&mut self, robot: &mut k::LinkTree<f32>) {
         for (trans, link_name) in
             robot
                 .calc_link_transforms()
