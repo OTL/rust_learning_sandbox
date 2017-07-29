@@ -180,8 +180,8 @@ pub fn create_tree<T>(robot: &urdf_rs::Robot) -> LinkTree<T>
 /// # Examples
 ///
 /// ```
-/// let tree = k::urdf::create_tree_from_file("sample.urdf").unwrap();
-/// assert_eq!(tree.map(&|ref_joint: &k::RefLinkNode<f32>| ref_joint.clone()).len(), 13);
+/// let tree = k::urdf::create_tree_from_file::<f32, _>("sample.urdf").unwrap();
+/// assert_eq!(tree.map(&|ref_joint| ref_joint.clone()).len(), 13);
 /// ```
 pub fn create_tree_from_file<T, P>(path: P) -> Result<LinkTree<T>, urdf_rs::UrdfError>
     where T: Real,
@@ -196,7 +196,7 @@ pub fn create_tree_from_file<T, P>(path: P) -> Result<LinkTree<T>, urdf_rs::Urdf
 /// # Examples
 ///
 /// ```
-/// let rf: k::LinkStar<f32> = k::urdf::create_star_from_file("sample.urdf").unwrap();
+/// let rf = k::urdf::create_star_from_file::<f64, _>("sample.urdf").unwrap();
 /// assert_eq!(rf.frames.len(), 2);
 /// assert_eq!(rf.frames[0].len(), 6);
 /// assert_eq!(rf.frames[1].len(), 6);
@@ -240,8 +240,6 @@ fn test_tree() {
 
 #[test]
 fn test_tree_from_file() {
-    let tree = create_tree_from_file("sample.urdf").unwrap();
-    assert_eq!(tree.map(&|ref_joint: &RefLinkNode<f32>| ref_joint.clone())
-                   .len(),
-               13);
+    let tree = create_tree_from_file::<f32, _>("sample.urdf").unwrap();
+    assert_eq!(tree.map(&|ref_joint| ref_joint.clone()).len(), 13);
 }

@@ -106,7 +106,12 @@
 //!   println!("angles={:?}", arm.get_joint_angles());
 //! }
 //! ```
-
+//!
+//! or you can use urdf module to load URDF file.
+//!
+//! ```
+//! let _ = k::urdf::create_tree_from_file::<f32, _>("sample.urdf").unwrap();
+//! ```
 extern crate alga;
 extern crate nalgebra as na;
 #[macro_use]
