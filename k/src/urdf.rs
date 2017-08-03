@@ -1,4 +1,31 @@
 //! # Load [URDF](http://wiki.ros.org/urdf) format and create `k::JointWithLinTree`
+//!
+//! `k::urdf` uses [urdf-rs](http://github.com/OTL/urdf-rs) to load urdf model.
+//! `k::urdf` converts `urdf_rs::Robot` to `k::LinkTree` or `k::LinkStar`
+//!
+//! # Examples
+//!
+//! ```
+//! use k::InverseKinematicsSolver;
+//! use k::KinematicChain;
+//! let robot = k::urdf::create_tree_from_file("urdf/sample.urdf").unwrap();
+//! let mut arms = k::create_kinematic_chains(&robot);
+//! // set joint angles
+//! let angles = vec![0.8, 0.2, 0.0, -1.5, 0.0, -0.3];
+//! arms[0].set_joint_angles(&angles).unwrap();
+//! // get the transform of the end of the manipulator (forward kinematics)
+//! let mut target = arms[0].calc_end_transform();
+//! target.translation.vector[2] += 0.1;
+//! let solver = k::JacobianIKSolverBuilder::new().finalize();
+//! // solve and move the manipulator angles
+//! solver.solve(&mut arms[0], &target)
+//!       .unwrap_or_else(|err| {
+//!                             println!("Err: {}", err);
+//!                             0.0f32
+//!                             });
+//! println!("angles={:?}", arms[0].get_joint_angles());
+//! ```
+//!
 extern crate nalgebra as na;
 extern crate urdf_rs;
 extern crate alga;
@@ -180,7 +207,7 @@ pub fn create_tree<T>(robot: &urdf_rs::Robot) -> LinkTree<T>
 /// # Examples
 ///
 /// ```
-/// let tree = k::urdf::create_tree_from_file::<f32, _>("sample.urdf").unwrap();
+/// let tree = k::urdf::create_tree_from_file::<f32, _>("urdf/sample.urdf").unwrap();
 /// assert_eq!(tree.map(&|ref_joint| ref_joint.clone()).len(), 13);
 /// ```
 pub fn create_tree_from_file<T, P>(path: P) -> Result<LinkTree<T>, urdf_rs::UrdfError>
@@ -196,7 +223,7 @@ pub fn create_tree_from_file<T, P>(path: P) -> Result<LinkTree<T>, urdf_rs::Urdf
 /// # Examples
 ///
 /// ```
-/// let rf = k::urdf::create_star_from_file::<f64, _>("sample.urdf").unwrap();
+/// let rf = k::urdf::create_star_from_file::<f64, _>("urdf/sample.urdf").unwrap();
 /// assert_eq!(rf.frames.len(), 2);
 /// assert_eq!(rf.frames[0].len(), 6);
 /// assert_eq!(rf.frames[1].len(), 6);
@@ -210,7 +237,7 @@ pub fn create_star_from_file<T, P>(path: P) -> Result<LinkStar<T>, urdf_rs::Urdf
 
 #[test]
 fn test_star() {
-    let robo = urdf_rs::read_file("sample.urdf").unwrap();
+    let robo = urdf_rs::read_file("urdf/sample.urdf").unwrap();
     assert_eq!(robo.name, "robo");
     assert_eq!(robo.links.len(), 1 + 6 + 6);
 
@@ -222,7 +249,7 @@ fn test_star() {
 
 #[test]
 fn test_star_from_file() {
-    let rf: LinkStar<f32> = create_star_from_file("sample.urdf").unwrap();
+    let rf: LinkStar<f32> = create_star_from_file("urdf/sample.urdf").unwrap();
     assert_eq!(rf.frames.len(), 2);
     assert_eq!(rf.frames[0].len(), 6);
     assert_eq!(rf.frames[1].len(), 6);
@@ -230,7 +257,7 @@ fn test_star_from_file() {
 
 #[test]
 fn test_tree() {
-    let robo = urdf_rs::read_file("sample.urdf").unwrap();
+    let robo = urdf_rs::read_file("urdf/sample.urdf").unwrap();
     assert_eq!(robo.name, "robo");
     assert_eq!(robo.links.len(), 1 + 6 + 6);
 
@@ -240,6 +267,6 @@ fn test_tree() {
 
 #[test]
 fn test_tree_from_file() {
-    let tree = create_tree_from_file::<f32, _>("sample.urdf").unwrap();
+    let tree = create_tree_from_file::<f32, _>("urdf/sample.urdf").unwrap();
     assert_eq!(tree.map(&|ref_joint| ref_joint.clone()).len(), 13);
 }
