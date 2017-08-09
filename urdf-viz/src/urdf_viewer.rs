@@ -20,17 +20,39 @@ static NATIVE_MOD: glfw::Modifiers = glfw::Super;
 static NATIVE_MOD: glfw::Modifiers = glfw::Control;
 
 fn move_ang(index: usize, rot: f32, angles_vec: &mut Vec<f32>, robot: &mut k::LinkTree<f32>) {
-    if index == 0 {
-        for ang in angles_vec.iter_mut() {
-            *ang += rot;
-        }
-    } else {
-        let dof = angles_vec.len();
-        angles_vec[index % dof] += rot;
-    }
+    let dof = angles_vec.len();
+    assert!(index < dof);
+    angles_vec[index] += rot;
     robot.set_joint_angles(angles_vec);
 }
 
+struct LoopIndex {
+    index: usize,
+    size: usize,
+}
+
+impl LoopIndex {
+    fn new(size: usize) -> Self {
+        Self {
+            index: 0,
+            size: size,
+        }
+    }
+    fn get(&self) -> usize {
+        self.index
+    }
+    fn inc(&mut self) {
+        self.index += 1;
+        self.index %= self.size;
+    }
+    fn dec(&mut self) {
+        if self.index == 0 {
+            self.index = self.size - 1;
+        } else {
+            self.index -= 1;
+        }
+    }
+}
 fn main() {
     env_logger::init().unwrap();
     let matches = App::new("urdf_viewer")
@@ -76,17 +98,40 @@ fn main() {
     println!("num_arms = {}", num_arms);
     let solver = k::JacobianIKSolverBuilder::new().finalize();
 
-    let dof = robot
-        .map(&|ljn_ref| ljn_ref.borrow().data.get_joint_angle())
-        .len();
-
+    let dof = robot.dof();
     let mut angles_vec = vec![0.0f32; dof];
-    let mut j = 0;
+    let mut index_of_move_joint = LoopIndex::new(dof);
+    let mut index_of_arm = LoopIndex::new(num_arms);
     let mut is_ctrl = false;
     let mut is_shift = false;
     let mut last_cur_pos_y = 0f64;
     let mut last_cur_pos_x = 0f64;
+    let joint_names = robot.get_joint_names();
     while viewer.render() {
+        viewer.draw_text("[: joint ID +1\n]: joint ID -1\nUp: joint angle +0.1\nDown: joint angle -0.1\nCtrl+Drag: move joint\nShift+Drag: IK",
+                         40,
+                         &na::Point2::new(1000f32, 10.0),
+                         &na::Point3::new(1f32, 1.0, 1.0));
+        viewer.draw_text(&format!("moving joint name [{}]", joint_names[index_of_move_joint.get()]),
+                         60,
+                         &na::Point2::new(10f32, 80.0),
+                         &na::Point3::new(0.5f32, 0.5, 1.0));
+        viewer.draw_text(&format!("IK target name [{}]", arms[index_of_arm.get()].name),
+                         60,
+                         &na::Point2::new(10f32, 200.0),
+                         &na::Point3::new(0.5f32, 0.8, 0.2));
+        if is_ctrl {
+            viewer.draw_text("moving joint by drag",
+                             60,
+                             &na::Point2::new(10f32, 150.0),
+                             &na::Point3::new(0.9f32, 0.5, 1.0));
+        }
+        if is_shift {
+            viewer.draw_text("solving ik",
+                             60,
+                             &na::Point2::new(10f32, 150.0),
+                             &na::Point3::new(0.9f32, 0.5, 1.0));
+        }
         for mut event in viewer.events().iter() {
             match event.value {
                 WindowEvent::MouseButton(_, Action::Press, mods) => {
@@ -101,14 +146,14 @@ fn main() {
                 WindowEvent::CursorPos(x, y) => {
                     if is_ctrl {
                         event.inhibited = true;
-                        move_ang(j,
+                        move_ang(index_of_move_joint.get(),
                                  ((y - last_cur_pos_y) / 100.0) as f32,
                                  &mut angles_vec,
                                  &mut robot);
                     }
                     if is_shift {
                         event.inhibited = true;
-                        let mut target = arms[j % num_arms].calc_end_transform();
+                        let mut target = arms[index_of_arm.get()].calc_end_transform();
                         target.translation.vector[2] -= ((x - last_cur_pos_x) / 100.0) as f32;
                         if is_ctrl {
                             target.translation.vector[1] += ((y - last_cur_pos_y) / 100.0) as f32;
@@ -116,7 +161,7 @@ fn main() {
                             target.translation.vector[0] += ((y - last_cur_pos_y) / 100.0) as f32;
                         }
                         solver
-                            .solve(&mut arms[j % num_arms], &target)
+                            .solve(&mut arms[index_of_arm.get()], &target)
                             .unwrap_or_else(|err| {
                                                 println!("Err: {}", err);
                                                 0.0f32
@@ -136,33 +181,12 @@ fn main() {
                 }
                 WindowEvent::Key(code, _, Action::Press, _) => {
                     match code {
-                        Key::Num0 => j = 0,
-                        Key::Num1 => j = 1,
-                        Key::Num2 => j = 2,
-                        Key::Num3 => j = 3,
-                        Key::Num4 => j = 4,
-                        Key::Num5 => j = 5,
-                        Key::Num6 => j = 6,
-                        Key::Num7 => j = 7,
-                        Key::Num8 => j = 8,
-                        Key::Num9 => j = 9,
-                        Key::A => j = 10,
-                        Key::B => j = 11,
-                        Key::C => j = 12,
-                        Key::D => j = 13,
-                        Key::E => j = 14,
-                        Key::F => j = 15,
-                        Key::G => j = 16,
-                        Key::H => j = 17,
-                        Key::I => j = 18,
-                        Key::J => j = 19,
-                        Key::K => j = 20,
-                        Key::L => j = 21,
-                        Key::M => j = 22,
-                        Key::N => j = 23,
-                        Key::O => j = 24,
-                        Key::Up => move_ang(j, 0.1, &mut angles_vec, &mut robot),
-                        Key::Down => move_ang(j, -0.1, &mut angles_vec, &mut robot),
+                        Key::LeftBracket => index_of_move_joint.inc(),
+                        Key::RightBracket => index_of_move_joint.dec(),
+                        Key::Period => index_of_arm.inc(),
+                        Key::Comma => index_of_arm.dec(),
+                        Key::Up => move_ang(index_of_move_joint.get(), 0.1, &mut angles_vec, &mut robot),
+                        Key::Down => move_ang(index_of_move_joint.get(), -0.1, &mut angles_vec, &mut robot),
                         _ => {}
                     };
                     event.inhibited = true;

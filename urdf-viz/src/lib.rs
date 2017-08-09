@@ -5,7 +5,8 @@
 //! ## Mesh
 //!
 //! Only `.obj` is supported by [kiss3d](https://github.com/sebcrozet/kiss3d),
-//! the visualization library. Other files are converted by `meshlabserver`.
+//! the visualization library used this crate.
+//! Other files are converted by `meshlabserver`.
 //! If you add `-a` option, `assimp` is used instead of meshlab.
 //! You need to install meshlab or assimp anyway.
 //!
@@ -25,6 +26,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
+use std::rc::Rc;
 
 pub enum MeshConvert {
     Assimp,
@@ -174,6 +176,8 @@ pub struct Viewer {
     pub urdf_robot: urdf_rs::Robot,
     pub scenes: HashMap<String, SceneNode>,
     pub arc_ball: kiss3d::camera::ArcBall,
+    font_map: HashMap<i32, Rc<kiss3d::text::Font>>,
+    font_data: &'static [u8],
 }
 
 impl Viewer {
@@ -185,6 +189,8 @@ impl Viewer {
             urdf_robot: urdf_robot,
             scenes: HashMap::new(),
             arc_ball: kiss3d::camera::ArcBall::new(eye, at),
+            font_map: HashMap::new(),
+            font_data: include_bytes!("font/Inconsolata.otf"),
         }
     }
     pub fn setup(&mut self, mesh_convert: MeshConvert) {
@@ -212,6 +218,19 @@ impl Viewer {
                 }
             }
         }
+    }
+    pub fn draw_text(&mut self,
+                     text: &str,
+                     size: i32,
+                     pos: &na::Point2<f32>,
+                     color: &na::Point3<f32>) {
+        self.window
+            .draw_text(text,
+                       pos,
+                       self.font_map
+                           .entry(size)
+                           .or_insert(kiss3d::text::Font::from_memory(self.font_data, size)),
+                       color);
     }
     pub fn events(&self) -> kiss3d::window::EventManager {
         self.window.events()
