@@ -59,8 +59,8 @@ pub fn convert_xacro_to_urdf<P>(filename: P, new_path: P) -> Result<(), std::io:
     where P: AsRef<Path>
 {
     create_parent_dir(new_path.as_ref())?;
-    let output = Command::new("xacro")
-        .args(&["--inorder",
+    let output = Command::new("rosrun")
+        .args(&["xacro", "xacro", "--inorder",
                 filename.as_ref().to_str().unwrap(),
                 "-o",
                 new_path.as_ref().to_str().unwrap()])

@@ -162,7 +162,7 @@ Shift+Drag: IK
                          60,
                          &na::Point2::new(10f32, 100.0),
                          &na::Point3::new(0.5f32, 0.8, 0.2));
-        if is_ctrl {
+        if is_ctrl && !is_shift {
             viewer.draw_text("moving joint by drag",
                              60,
                              &na::Point2::new(10f32, 150.0),
@@ -180,13 +180,14 @@ Shift+Drag: IK
                     if mods.contains(NATIVE_MOD) {
                         is_ctrl = true;
                         event.inhibited = true;
-                    } else if mods.contains(glfw::Shift) {
+                    }
+		     if mods.contains(glfw::Shift) {
                         is_shift = true;
                         event.inhibited = true;
                     }
                 }
                 WindowEvent::CursorPos(x, y) => {
-                    if is_ctrl {
+                    if is_ctrl && !is_shift {
                         event.inhibited = true;
                         let move_gain = 0.005;
                         move_ang(index_of_move_joint.get(),
@@ -200,13 +201,16 @@ Shift+Drag: IK
                         event.inhibited = true;
                         let mut target = arms[index_of_arm.get()].calc_end_transform();
                         let ik_move_gain = 0.002;
-                        target.translation.vector[0] += ((x - last_cur_pos_x) * ik_move_gain) as
+			// [1]: z
+			// [2]: x
+			// [0]: y
+                        target.translation.vector[0] -= ((x - last_cur_pos_x) * ik_move_gain) as
                                                         f32;
                         if is_ctrl {
-                            target.translation.vector[1] += ((y - last_cur_pos_y) * ik_move_gain) as
+                            target.translation.vector[2] += ((y - last_cur_pos_y) * ik_move_gain) as
                                                             f32;
                         } else {
-                            target.translation.vector[2] += ((y - last_cur_pos_y) * ik_move_gain) as
+                            target.translation.vector[1] -= ((y - last_cur_pos_y) * ik_move_gain) as
                                                             f32;
                         }
                         solver
