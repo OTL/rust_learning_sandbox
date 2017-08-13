@@ -9,7 +9,6 @@ extern crate urdf_viz;
 #[macro_use]
 extern crate rosrust;
 
-use clap::{Arg, App};
 use k::InverseKinematicsSolver;
 use k::KinematicChain;
 use std::path::Path;
@@ -21,36 +20,11 @@ rosmsg_include!();
 fn main() {
     env_logger::init().unwrap();
     let mut ros = Ros::new("uviz").unwrap();
-    let matches = App::new("urdf_viewer")
-        .author("Takashi Ogura <t.ogura@gmail.com>")
-        .about("Show and move urdf robot model for debuging")
-        .arg(Arg::with_name("input")
-                 .help("input urdf or xacro file")
-                 .required(true))
-        .arg(Arg::with_name("assimp")
-                 .short("a")
-                 .long("assimp")
-                 .help("Use assimp instead of meshlab to convert .dae to .obj for visualization"))
-        .get_matches();
-    let mesh_convert = if matches.is_present("assimp") {
-        urdf_viz::MeshConvert::Assimp
-    } else {
-        urdf_viz::MeshConvert::Meshlab
-    };
-
-    let arg_input = matches.value_of("input").unwrap();
-    let abs_urdf_path;
-    let input_path = Path::new(&arg_input);
-    let urdf_path = if input_path.extension().unwrap() == "xacro" {
-        abs_urdf_path = format!("/tmp/urdf_viz/{}",
-                                input_path.with_extension("urdf").to_str().unwrap());
-        let tmp_urdf_path = Path::new(&abs_urdf_path);
-        urdf_viz::convert_xacro_to_urdf(&input_path, &tmp_urdf_path).unwrap();
-        tmp_urdf_path
-    } else {
-        input_path
-    };
-
+    let opt = urdf_viz::Opt::from_args();
+    let mesh_convert = opt.get_mesh_convert_method();
+    let ik_dof = opt.ik_dof;
+    let input_path = Path::new(&opt.input_urdf_or_xacro);
+    let urdf_path = urdf_viz::convert_xacro_if_needed_and_get_path(input_path).unwrap();
     let urdf_robo = urdf_rs::read_file(&urdf_path).unwrap();
     let mut robot = k::urdf::create_tree::<f32>(&urdf_robo);
     let mut viewer = urdf_viz::Viewer::new(urdf_robo);
@@ -59,7 +33,7 @@ fn main() {
         na::Isometry3::from_parts(na::Translation3::new(0.0, 0.0, 0.0),
                                   na::UnitQuaternion::from_euler_angles(0.0, 1.57, 1.57));
     robot.root_link.borrow_mut().data.transform = base_transform;
-    let mut arms = k::create_kinematic_chains(&robot);
+    let mut arms = k::create_kinematic_chains_with_dof_limit(&robot, ik_dof);
     let num_arms = arms.len();
     println!("num_arms = {}", num_arms);
 
@@ -78,9 +52,7 @@ fn main() {
             .unwrap();
     }
 
-    let dof = robot
-        .map(&|ljn_ref| ljn_ref.borrow().data.get_joint_angle())
-        .len();
+    let dof = robot.dof();
 
     let angles_vec = Arc::new(Mutex::new(vec![0.0f32; dof]));
     let angles_vec_copy = angles_vec.clone();
@@ -92,7 +64,9 @@ fn main() {
                    })
         .unwrap();
     while viewer.render() {
-        robot.set_joint_angles(&angles_vec_copy.lock().unwrap());
+        robot
+            .set_joint_angles(&angles_vec_copy.lock().unwrap())
+            .unwrap();
         for (vel_mutex, arm) in end_vel_map.iter().zip(arms.iter_mut()) {
             let vel = vel_mutex.lock().unwrap();
             if vel[0].abs() > 0.01 || vel[1].abs() > 0.01 || vel[2].abs() > 0.01 {

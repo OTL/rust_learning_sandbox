@@ -6,7 +6,6 @@ authors = ["Takashi Ogura <t.ogura@gmail.com>"]
 [dependencies]
 
 alga = "0.5.1"
-clap = "*"
 env_logger = "0.4.2"
 glfw = "0.8.0" # required by kiss3d
 kiss3d = "0.8.0"
@@ -18,7 +17,7 @@ serde = "1.0.2"
 serde_derive = "1.0.2"
 urdf-rs = "0.1.5"
 
-k = { version = "0.1.0", path = "../k" }
+k = { version = "0.0.3", path = "../../k" }
 urdf-viz = { version = "0.1.0", path = "../urdf-viz" }
 
 [[bin]]

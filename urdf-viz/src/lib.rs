@@ -20,6 +20,9 @@ extern crate urdf_rs;
 #[macro_use]
 extern crate log;
 extern crate rayon;
+extern crate structopt;
+#[macro_use]
+extern crate structopt_derive;
 
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
@@ -60,7 +63,9 @@ pub fn convert_xacro_to_urdf<P>(filename: P, new_path: P) -> Result<(), std::io:
 {
     create_parent_dir(new_path.as_ref())?;
     let output = Command::new("rosrun")
-        .args(&["xacro", "xacro", "--inorder",
+        .args(&["xacro",
+                "xacro",
+                "--inorder",
                 filename.as_ref().to_str().unwrap(),
                 "-o",
                 new_path.as_ref().to_str().unwrap()])
@@ -269,5 +274,37 @@ impl Viewer {
     }
 }
 
-#[test]
-fn it_works() {}
+pub fn convert_xacro_if_needed_and_get_path(input_path: &Path) -> Result<PathBuf, std::io::Error>
+{
+    if input_path.extension().unwrap() == "xacro" {
+        let abs_urdf_path = get_cache_dir().to_string() + input_path.with_extension("urdf").to_str().unwrap();
+        let tmp_urdf_path = Path::new(&abs_urdf_path);
+        convert_xacro_to_urdf(&input_path, &tmp_urdf_path)?;
+        Ok(tmp_urdf_path.to_owned())
+    } else {
+        Ok(input_path.to_owned())
+    }
+}
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = "urdf_viz", about = "Option for visualizing urdf")]
+pub struct Opt {
+    #[structopt(short = "a", long = "assimp", help = "Use assimp instead of meshlab to convert .dae to .obj for visualization")]
+    pub assimp: bool,
+    #[structopt(short = "c", long = "clean", help = "Clean the caches which is created by assimp or meshlab")]
+    pub clean: bool,
+    #[structopt(short = "d", long = "dof", help = "max dof for ik", default_value = "6")]
+    pub ik_dof: usize,
+    #[structopt(help = "Input urdf or xacro")]
+    pub input_urdf_or_xacro: String,
+}
+
+impl Opt {
+    pub fn get_mesh_convert_method(&self) -> MeshConvert {
+        if self.assimp {
+            MeshConvert::Assimp
+        } else {
+            MeshConvert::Meshlab
+        }
+    }
+}
