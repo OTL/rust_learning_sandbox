@@ -11,9 +11,11 @@ glfw = "0.8.0" # required by kiss3d
 kiss3d = "0.8.0"
 log = "0.3"
 nalgebra = "0.11.0"
-k = {version = "0.0.1", path = "../../k"}
+k = {version = "0.0.2", path = "../../k"}
 regex = "0.1"
 urdf-rs = "0.1.5"
+rayon = "0.8.2"
+rand = "0.3.0"
 
 [[bin]]
 name = "urdf_viewer"

@@ -19,18 +19,31 @@ extern crate regex;
 extern crate urdf_rs;
 #[macro_use]
 extern crate log;
+extern crate rayon;
 
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
+use rayon::prelude::*;
 use regex::Regex;
 use std::collections::HashMap;
+use std::fs;
+use std::io;
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 use std::rc::Rc;
 
 pub enum MeshConvert {
     Assimp,
     Meshlab,
+}
+
+pub fn get_cache_dir() -> &'static str {
+    "/tmp/urdf_vis/"
+}
+
+pub fn clean_cahce_dir() -> io::Result<()> {
+    fs::remove_dir_all(get_cache_dir())
 }
 
 fn create_parent_dir(new_path: &Path) -> Result<(), std::io::Error> {
@@ -110,10 +123,41 @@ fn rospack_find(package: &str) -> Option<String> {
     }
 }
 
-pub fn add_geometry(visual: &urdf_rs::Visual,
-                    mesh_convert: &MeshConvert,
-                    window: &mut Window)
-                    -> Option<SceneNode> {
+
+fn expand_package_path(filename: &str) -> String {
+    let re = Regex::new("^package://(\\w+)/").unwrap();
+    re.replace(filename,
+               |ma: &regex::Captures| match rospack_find(&ma[1]) {
+                   Some(found_path) => found_path + "/",
+                   None => panic!("failed to find ros package {}", &ma[1]),
+               })
+}
+
+fn get_cache_or_obj_path(path: &Path) -> PathBuf {
+    if path.extension().unwrap() == "obj" {
+        return path.to_path_buf();
+    }
+    let cache_path = get_cache_dir().to_string() + &path.with_extension("obj").to_str().unwrap();
+    info!("cache obj path = {:?}", cache_path);
+    Path::new(&cache_path).to_path_buf()
+}
+
+fn convert_mesh_if_needed(filename: &str, mesh_convert: &MeshConvert) {
+    let replaced_filename = expand_package_path(filename);
+    let path = Path::new(&replaced_filename);
+    assert!(path.exists(), "{} not found", replaced_filename);
+    let new_path = get_cache_or_obj_path(path);
+    if !new_path.exists() {
+        match *mesh_convert {
+                MeshConvert::Assimp => convert_to_obj_file_by_assimp(path, new_path.as_path()),
+                MeshConvert::Meshlab => convert_to_obj_file_by_meshlab(path, new_path.as_path()),
+            }
+            .unwrap();
+    }
+}
+
+
+fn add_geometry(visual: &urdf_rs::Visual, window: &mut Window) -> Option<SceneNode> {
     let mut geom = match visual.geometry {
         urdf_rs::Geometry::Box { ref size } => {
             Some(window.add_cube(size[0] as f32, size[1] as f32, size[2] as f32))
@@ -126,37 +170,15 @@ pub fn add_geometry(visual: &urdf_rs::Visual,
             ref filename,
             scale,
         } => {
-            let re = Regex::new("^package://(\\w+)/").unwrap();
-            let replaced_filename =
-                re.replace(filename,
-                           |ma: &regex::Captures| match rospack_find(&ma[1]) {
-                               Some(found_path) => found_path + "/",
-                               None => panic!("failed to find ros package {}", &ma[1]),
-                           });
+            let replaced_filename = expand_package_path(filename);
             let path = Path::new(&replaced_filename);
             assert!(path.exists(), "{} not found", replaced_filename);
-            let mut cache_path = "".to_string();
-            let new_path;
-            if path.extension().unwrap() == "obj" {
-                new_path = path;
-            } else {
-                let new_rel_path = Path::new(&replaced_filename);
-                cache_path = format!("/tmp/urdf_vis{}",
-                                     &new_rel_path.with_extension("obj").to_str().unwrap());
-                new_path = Path::new(&cache_path);
-                info!("cache obj path = {:?}", new_path);
-            }
-            let mtl_path_string = cache_path.clone() + ".mtl";
-            let mtl_path = Path::new(&mtl_path_string);
-            if !new_path.exists() {
-                match *mesh_convert {
-                        MeshConvert::Assimp => convert_to_obj_file_by_assimp(path, new_path),
-                        MeshConvert::Meshlab => convert_to_obj_file_by_meshlab(path, new_path),
-                    }
-                    .unwrap();
-            }
-            Some(window.add_obj(new_path,
-                                mtl_path,
+            let new_path = get_cache_or_obj_path(path);
+            let mtl_path = new_path.with_extension("mtl");
+            // should be generated in advance
+            assert!(new_path.exists());
+            Some(window.add_obj(new_path.as_path(),
+                                mtl_path.as_path(),
                                 na::Vector3::new(scale[0] as f32,
                                                  scale[1] as f32,
                                                  scale[2] as f32)))
@@ -169,7 +191,6 @@ pub fn add_geometry(visual: &urdf_rs::Visual,
     }
     geom
 }
-
 
 pub struct Viewer {
     pub window: kiss3d::window::Window,
@@ -185,7 +206,7 @@ impl Viewer {
         let eye = na::Point3::new(0.5f32, 1.0, -3.0);
         let at = na::Point3::new(0.0f32, 0.25, 0.0);
         Viewer {
-            window: kiss3d::window::Window::new("urdf_viewer"),
+            window: kiss3d::window::Window::new_with_size("urdf_viewer", 1400, 1000),
             urdf_robot: urdf_robot,
             scenes: HashMap::new(),
             arc_ball: kiss3d::camera::ArcBall::new(eye, at),
@@ -196,10 +217,21 @@ impl Viewer {
     pub fn setup(&mut self, mesh_convert: MeshConvert) {
         self.window
             .set_light(kiss3d::light::Light::StickToCamera);
+
+        let _ = self.urdf_robot
+            .links
+            .par_iter()
+            .map(|l| if let urdf_rs::Geometry::Mesh {
+                            filename: ref f,
+                            scale: _,
+                        } = l.visual.geometry {
+                     convert_mesh_if_needed(f, &mesh_convert);
+                 })
+            .count();
         for l in &self.urdf_robot.links {
             self.scenes
                 .insert(l.name.to_string(),
-                        add_geometry(&l.visual, &mesh_convert, &mut self.window).unwrap());
+                        add_geometry(&l.visual, &mut self.window).unwrap());
         }
     }
     pub fn render(&mut self) -> bool {
@@ -210,7 +242,7 @@ impl Viewer {
             robot
                 .calc_link_transforms()
                 .iter()
-                .zip(robot.map(&|ljn_ref| ljn_ref.borrow().data.name.clone())) {
+                .zip(robot.map_link(&|link| link.name.clone())) {
             match self.scenes.get_mut(&link_name) {
                 Some(obj) => obj.set_local_transformation(*trans),
                 None => {
