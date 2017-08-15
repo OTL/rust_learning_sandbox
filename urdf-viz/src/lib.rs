@@ -41,7 +41,7 @@ pub enum MeshConvert {
     Meshlab,
 }
 
-pub fn get_cache_dir() -> &'static str {
+fn get_cache_dir() -> &'static str {
     "/tmp/urdf_vis/"
 }
 
