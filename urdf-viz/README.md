@@ -61,6 +61,10 @@ In the GUI, you can
   * `Shift` + `Ctrl` + Drag to use inverse kinematics(Y and X axis)
   * change the move target for inverse kinematics by `,` and `.`
 * `r` key to set random joints
+* move camera
+  * Mouse Right Drag to translate camera position
+  * Mouse Left Drag to look around
+  * Scroll to zoom in/out
 
 Garally
 --------------------
