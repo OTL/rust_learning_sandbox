@@ -2,6 +2,12 @@
 name = "urdf-viz"
 version = "0.1.0"
 authors = ["Takashi Ogura <t.ogura@gmail.com>"]
+description = "URDF visualization"
+license = "Apache-2.0"
+keywords = ["robotics", "urdf", "visualization"]
+categories = ["visualization"]
+repository = "https://github.com/OTL/urdf-viz"
+documentation = "http://docs.rs/urdf-viz"
 
 [dependencies]
 alga = "0.5.1"
