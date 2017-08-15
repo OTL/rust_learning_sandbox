@@ -70,6 +70,7 @@ Garally
 ![pepper_1.png](img/pepper_1.png)
 ![pepper_2.png](img/pepper_2.png)
 ![nao_1.png](img/nao_1.png)
+![nao_2.png](img/nao_2.png)
 ![thormang3_1.png](img/thormang3_1.png)
 ![thormang3_2.png](img/thormang3_2.png)
 ![pr2_1.png](img/pr2_1.png)
