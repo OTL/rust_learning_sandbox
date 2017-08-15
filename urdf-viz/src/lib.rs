@@ -59,56 +59,91 @@ fn create_parent_dir(new_path: &Path) -> Result<(), std::io::Error> {
 }
 
 pub fn convert_xacro_to_urdf<P>(filename: P, new_path: P) -> Result<(), std::io::Error>
-    where P: AsRef<Path>
+where
+    P: AsRef<Path>,
 {
     create_parent_dir(new_path.as_ref())?;
     let output = Command::new("rosrun")
-        .args(&["xacro",
+        .args(
+            &[
+                "xacro",
                 "xacro",
                 "--inorder",
                 filename.as_ref().to_str().unwrap(),
                 "-o",
-                new_path.as_ref().to_str().unwrap()])
+                new_path.as_ref().to_str().unwrap(),
+            ],
+        )
         .output()
-        .expect("failed to execute xacro. install by apt-get install ros-*-xacro");
+        .expect(
+            "failed to execute xacro. install by apt-get install ros-*-xacro",
+        );
     if output.status.success() {
         Ok(())
     } else {
         error!("{}", String::from_utf8(output.stderr).unwrap());
-        Err(std::io::Error::new(std::io::ErrorKind::Other, "faild to xacro"))
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "faild to xacro",
+        ))
     }
 }
 
-pub fn convert_to_obj_file_by_meshlab(filename: &Path,
-                                      new_path: &Path)
-                                      -> Result<(), std::io::Error> {
+pub fn convert_to_obj_file_by_meshlab(
+    filename: &Path,
+    new_path: &Path,
+) -> Result<(), std::io::Error> {
     create_parent_dir(new_path)?;
     info!("converting {:?} to {:?}", filename, new_path);
     let output = Command::new("meshlabserver")
-        .args(&["-i", filename.to_str().unwrap(), "-o", new_path.to_str().unwrap()])
+        .args(
+            &[
+                "-i",
+                filename.to_str().unwrap(),
+                "-o",
+                new_path.to_str().unwrap(),
+            ],
+        )
         .output()
-        .expect("failed to execute meshlabserver. install by apt-get install meshlab");
+        .expect(
+            "failed to execute meshlabserver. install by apt-get install meshlab",
+        );
     if output.status.success() {
         Ok(())
     } else {
-        Err(std::io::Error::new(std::io::ErrorKind::Other, "faild to meshlab"))
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "faild to meshlab",
+        ))
     }
 }
 
-pub fn convert_to_obj_file_by_assimp(filename: &Path,
-                                     new_path: &Path)
-                                     -> Result<(), std::io::Error> {
+pub fn convert_to_obj_file_by_assimp(
+    filename: &Path,
+    new_path: &Path,
+) -> Result<(), std::io::Error> {
     create_parent_dir(new_path)?;
     info!("converting {:?} to {:?}", filename, new_path);
-    let output =
-        Command::new("assimp")
-            .args(&["export", filename.to_str().unwrap(), new_path.to_str().unwrap(), "-ptv"])
-            .output()
-            .expect("failed to execute meshlabserver. install by apt-get install assimp-utils");
+    let output = Command::new("assimp")
+        .args(
+            &[
+                "export",
+                filename.to_str().unwrap(),
+                new_path.to_str().unwrap(),
+                "-ptv",
+            ],
+        )
+        .output()
+        .expect(
+            "failed to execute meshlabserver. install by apt-get install assimp-utils",
+        );
     if output.status.success() {
         Ok(())
     } else {
-        Err(std::io::Error::new(std::io::ErrorKind::Other, "faild to assimp"))
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "faild to assimp",
+        ))
     }
 }
 
@@ -131,11 +166,13 @@ fn rospack_find(package: &str) -> Option<String> {
 
 fn expand_package_path(filename: &str) -> String {
     let re = Regex::new("^package://(\\w+)/").unwrap();
-    re.replace(filename,
-               |ma: &regex::Captures| match rospack_find(&ma[1]) {
-                   Some(found_path) => found_path + "/",
-                   None => panic!("failed to find ros package {}", &ma[1]),
-               })
+    re.replace(
+        filename,
+        |ma: &regex::Captures| match rospack_find(&ma[1]) {
+            Some(found_path) => found_path + "/",
+            None => panic!("failed to find ros package {}", &ma[1]),
+        },
+    )
 }
 
 fn get_cache_or_obj_path(path: &Path) -> PathBuf {
@@ -154,10 +191,9 @@ fn convert_mesh_if_needed(filename: &str, mesh_convert: &MeshConvert) {
     let new_path = get_cache_or_obj_path(path);
     if !new_path.exists() {
         match *mesh_convert {
-                MeshConvert::Assimp => convert_to_obj_file_by_assimp(path, new_path.as_path()),
-                MeshConvert::Meshlab => convert_to_obj_file_by_meshlab(path, new_path.as_path()),
-            }
-            .unwrap();
+            MeshConvert::Assimp => convert_to_obj_file_by_assimp(path, new_path.as_path()),
+            MeshConvert::Meshlab => convert_to_obj_file_by_meshlab(path, new_path.as_path()),
+        }.unwrap();
     }
 }
 
@@ -165,7 +201,11 @@ fn convert_mesh_if_needed(filename: &str, mesh_convert: &MeshConvert) {
 fn add_geometry(visual: &urdf_rs::Visual, window: &mut Window) -> Option<SceneNode> {
     let mut geom = match visual.geometry {
         urdf_rs::Geometry::Box { ref size } => {
-            Some(window.add_cube(size[0] as f32, size[1] as f32, size[2] as f32))
+            Some(window.add_cube(
+                size[0] as f32,
+                size[1] as f32,
+                size[2] as f32,
+            ))
         }
         urdf_rs::Geometry::Cylinder { radius, length } => {
             Some(window.add_cylinder(radius as f32, length as f32))
@@ -182,11 +222,15 @@ fn add_geometry(visual: &urdf_rs::Visual, window: &mut Window) -> Option<SceneNo
             let mtl_path = new_path.with_extension("mtl");
             // should be generated in advance
             assert!(new_path.exists());
-            Some(window.add_obj(new_path.as_path(),
-                                mtl_path.as_path(),
-                                na::Vector3::new(scale[0] as f32,
-                                                 scale[1] as f32,
-                                                 scale[2] as f32)))
+            Some(window.add_obj(
+                new_path.as_path(),
+                mtl_path.as_path(),
+                na::Vector3::new(
+                    scale[0] as f32,
+                    scale[1] as f32,
+                    scale[2] as f32,
+                ),
+            ))
         }
     };
     let rgba = &visual.material.color.rgba;
@@ -220,23 +264,24 @@ impl Viewer {
         }
     }
     pub fn setup(&mut self, mesh_convert: MeshConvert) {
-        self.window
-            .set_light(kiss3d::light::Light::StickToCamera);
+        self.window.set_light(kiss3d::light::Light::StickToCamera);
 
         let _ = self.urdf_robot
             .links
             .par_iter()
             .map(|l| if let urdf_rs::Geometry::Mesh {
-                            filename: ref f,
-                            scale: _,
-                        } = l.visual.geometry {
-                     convert_mesh_if_needed(f, &mesh_convert);
-                 })
+                filename: ref f,
+                scale: _,
+            } = l.visual.geometry
+            {
+                convert_mesh_if_needed(f, &mesh_convert);
+            })
             .count();
         for l in &self.urdf_robot.links {
-            self.scenes
-                .insert(l.name.to_string(),
-                        add_geometry(&l.visual, &mut self.window).unwrap());
+            self.scenes.insert(
+                l.name.to_string(),
+                add_geometry(&l.visual, &mut self.window).unwrap(),
+            );
         }
     }
     pub fn render(&mut self) -> bool {
@@ -244,10 +289,12 @@ impl Viewer {
     }
     pub fn update(&mut self, robot: &mut k::LinkTree<f32>) {
         for (trans, link_name) in
-            robot
-                .calc_link_transforms()
-                .iter()
-                .zip(robot.map_link(&|link| link.name.clone())) {
+            robot.calc_link_transforms().iter().zip(
+                robot.map_link(&|link| {
+                    link.name.clone()
+                }),
+            )
+        {
             match self.scenes.get_mut(&link_name) {
                 Some(obj) => obj.set_local_transformation(*trans),
                 None => {
@@ -256,28 +303,34 @@ impl Viewer {
             }
         }
     }
-    pub fn draw_text(&mut self,
-                     text: &str,
-                     size: i32,
-                     pos: &na::Point2<f32>,
-                     color: &na::Point3<f32>) {
-        self.window
-            .draw_text(text,
-                       pos,
-                       self.font_map
-                           .entry(size)
-                           .or_insert(kiss3d::text::Font::from_memory(self.font_data, size)),
-                       color);
+    pub fn draw_text(
+        &mut self,
+        text: &str,
+        size: i32,
+        pos: &na::Point2<f32>,
+        color: &na::Point3<f32>,
+    ) {
+        self.window.draw_text(
+            text,
+            pos,
+            self.font_map.entry(size).or_insert(
+                kiss3d::text::Font::from_memory(
+                    self.font_data,
+                    size,
+                ),
+            ),
+            color,
+        );
     }
     pub fn events(&self) -> kiss3d::window::EventManager {
         self.window.events()
     }
 }
 
-pub fn convert_xacro_if_needed_and_get_path(input_path: &Path) -> Result<PathBuf, std::io::Error>
-{
+pub fn convert_xacro_if_needed_and_get_path(input_path: &Path) -> Result<PathBuf, std::io::Error> {
     if input_path.extension().unwrap() == "xacro" {
-        let abs_urdf_path = get_cache_dir().to_string() + input_path.with_extension("urdf").to_str().unwrap();
+        let abs_urdf_path = get_cache_dir().to_string() +
+            input_path.with_extension("urdf").to_str().unwrap();
         let tmp_urdf_path = Path::new(&abs_urdf_path);
         convert_xacro_to_urdf(&input_path, &tmp_urdf_path)?;
         Ok(tmp_urdf_path.to_owned())
@@ -289,9 +342,11 @@ pub fn convert_xacro_if_needed_and_get_path(input_path: &Path) -> Result<PathBuf
 #[derive(StructOpt, Debug)]
 #[structopt(name = "urdf_viz", about = "Option for visualizing urdf")]
 pub struct Opt {
-    #[structopt(short = "a", long = "assimp", help = "Use assimp instead of meshlab to convert .dae to .obj for visualization")]
+    #[structopt(short = "a", long = "assimp",
+                help = "Use assimp instead of meshlab to convert .dae to .obj for visualization")]
     pub assimp: bool,
-    #[structopt(short = "c", long = "clean", help = "Clean the caches which is created by assimp or meshlab")]
+    #[structopt(short = "c", long = "clean",
+                help = "Clean the caches which is created by assimp or meshlab")]
     pub clean: bool,
     #[structopt(short = "d", long = "dof", help = "max dof for ik", default_value = "6")]
     pub ik_dof: usize,

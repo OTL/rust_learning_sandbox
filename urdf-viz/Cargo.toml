@@ -5,7 +5,6 @@ authors = ["Takashi Ogura <t.ogura@gmail.com>"]
 
 [dependencies]
 alga = "0.5.1"
-#clap = "*"
 structopt = "0.1.0"
 structopt-derive = "0.1.0"
 env_logger = "0.4.2"

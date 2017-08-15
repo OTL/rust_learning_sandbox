@@ -20,17 +20,18 @@ static NATIVE_MOD: glfw::Modifiers = glfw::Super;
 static NATIVE_MOD: glfw::Modifiers = glfw::Control;
 
 fn move_joint_by_random(robot: &mut k::LinkTree<f32>) -> Result<(), k::JointError> {
-    let mut angles_vec = robot.get_joint_angles();
-    for v in angles_vec.iter_mut() {
-        *v = (rand::random::<f32>() - 0.5) * 2.0;
-    }
+    let angles_vec = robot.map_link(&|link| match link.joint.limits {
+        Some(range) => range.min + (range.max - range.min) * rand::random(),
+        None => (rand::random::<f32>() - 0.5) * 2.0,
+    });
     robot.set_joint_angles(&angles_vec)
 }
 
-fn move_joint_by_index(index: usize,
-                       diff_angle: f32,
-                       robot: &mut k::LinkTree<f32>)
-                       -> Result<(), k::JointError> {
+fn move_joint_by_index(
+    index: usize,
+    diff_angle: f32,
+    robot: &mut k::LinkTree<f32>,
+) -> Result<(), k::JointError> {
     let mut angles_vec = robot.get_joint_angles();
     assert!(index < robot.dof());
     angles_vec[index] += diff_angle;
@@ -81,9 +82,10 @@ fn main() {
     let mut robot = k::urdf::create_tree::<f32>(&urdf_robo);
     let mut viewer = urdf_viz::Viewer::new(urdf_robo);
     viewer.setup(mesh_convert);
-    let base_transform =
-        na::Isometry3::from_parts(na::Translation3::new(0.0, 0.0, 0.0),
-                                  na::UnitQuaternion::from_euler_angles(0.0, 1.57, 1.57));
+    let base_transform = na::Isometry3::from_parts(
+        na::Translation3::new(0.0, 0.0, 0.0),
+        na::UnitQuaternion::from_euler_angles(0.0, 1.57, 1.57),
+    );
     robot.set_root_transform(base_transform);
     let mut arms = k::create_kinematic_chains_with_dof_limit(&robot, ik_dof);
     let num_arms = arms.len();
@@ -100,7 +102,8 @@ fn main() {
     let joint_names = robot.get_joint_names();
     viewer.update(&mut robot);
     while viewer.render() {
-        viewer.draw_text(r"
+        viewer.draw_text(
+            r"
 [:    joint ID +1
 ]:    joint ID -1
 ,:    IK target ID +1
@@ -112,29 +115,40 @@ Ctrl+Drag: move joint
 Shift+Drag: IK (y, z)
 Shift+Ctrl+Drag: IK (y, x)
 ",
-                         40,
-                         &na::Point2::new(2000.0, 10.0),
-                         &na::Point3::new(1f32, 1.0, 1.0));
-        viewer.draw_text(&format!("moving joint name [{}]",
-                                  joint_names[index_of_move_joint.get()]),
-                         60,
-                         &na::Point2::new(10f32, 20.0),
-                         &na::Point3::new(0.5f32, 0.5, 1.0));
-        viewer.draw_text(&format!("IK target name [{}]", arms[index_of_arm.get()].name),
-                         60,
-                         &na::Point2::new(10f32, 100.0),
-                         &na::Point3::new(0.5f32, 0.8, 0.2));
+            40,
+            &na::Point2::new(2000.0, 10.0),
+            &na::Point3::new(1f32, 1.0, 1.0),
+        );
+        viewer.draw_text(
+            &format!(
+                "moving joint name [{}]",
+                joint_names[index_of_move_joint.get()]
+            ),
+            60,
+            &na::Point2::new(10f32, 20.0),
+            &na::Point3::new(0.5f32, 0.5, 1.0),
+        );
+        viewer.draw_text(
+            &format!("IK target name [{}]", arms[index_of_arm.get()].name),
+            60,
+            &na::Point2::new(10f32, 100.0),
+            &na::Point3::new(0.5f32, 0.8, 0.2),
+        );
         if is_ctrl && !is_shift {
-            viewer.draw_text("moving joint by drag",
-                             60,
-                             &na::Point2::new(10f32, 150.0),
-                             &na::Point3::new(0.9f32, 0.5, 1.0));
+            viewer.draw_text(
+                "moving joint by drag",
+                60,
+                &na::Point2::new(10f32, 150.0),
+                &na::Point3::new(0.9f32, 0.5, 1.0),
+            );
         }
         if is_shift {
-            viewer.draw_text("solving ik",
-                             60,
-                             &na::Point2::new(10f32, 150.0),
-                             &na::Point3::new(0.9f32, 0.5, 1.0));
+            viewer.draw_text(
+                "solving ik",
+                60,
+                &na::Point2::new(10f32, 150.0),
+                &na::Point3::new(0.9f32, 0.5, 1.0),
+            );
         }
         for mut event in viewer.events().iter() {
             match event.value {
@@ -152,12 +166,13 @@ Shift+Ctrl+Drag: IK (y, x)
                     if is_ctrl && !is_shift {
                         event.inhibited = true;
                         let move_gain = 0.005;
-                        move_joint_by_index(index_of_move_joint.get(),
-                                            (((x - last_cur_pos_x) + (y - last_cur_pos_y)) *
-                                             move_gain) as
-                                            f32,
-                                            &mut robot)
-                                .unwrap();
+                        move_joint_by_index(
+                            index_of_move_joint.get(),
+                            (((x - last_cur_pos_x) + (y - last_cur_pos_y)) * move_gain) as f32,
+                            &mut robot,
+                        ).unwrap_or_else(|err| {
+                            println!("Err: {}", err);
+                        });
                         viewer.update(&mut robot);
                     }
                     if is_shift {
@@ -168,20 +183,20 @@ Shift+Ctrl+Drag: IK (y, x)
                         // [1]: z
                         // [2]: x
                         target.translation.vector[0] -= ((x - last_cur_pos_x) * ik_move_gain) as
-                                                        f32;
+                            f32;
                         if is_ctrl {
                             target.translation.vector[2] += ((y - last_cur_pos_y) * ik_move_gain) as
-                                                            f32;
+                                f32;
                         } else {
                             target.translation.vector[1] -= ((y - last_cur_pos_y) * ik_move_gain) as
-                                                            f32;
+                                f32;
                         }
                         solver
                             .solve(&mut arms[index_of_arm.get()], &target)
                             .unwrap_or_else(|err| {
-                                                println!("Err: {}", err);
-                                                0.0f32
-                                            });
+                                println!("Err: {}", err);
+                                0.0f32
+                            });
                         viewer.update(&mut robot);
                     }
                     last_cur_pos_x = x;
@@ -203,17 +218,23 @@ Shift+Ctrl+Drag: IK (y, x)
                         Key::Period => index_of_arm.inc(),
                         Key::Comma => index_of_arm.dec(),
                         Key::R => {
-                            move_joint_by_random(&mut robot).unwrap();
+                            move_joint_by_random(&mut robot).unwrap_or_else(|err| {
+                                println!("Err: {}", err);
+                            });
                             viewer.update(&mut robot)
                         }
                         Key::Up => {
                             move_joint_by_index(index_of_move_joint.get(), 0.1, &mut robot)
-                                .unwrap();
+                                .unwrap_or_else(|err| {
+                                    println!("Err: {}", err);
+                                });
                             viewer.update(&mut robot);
                         }
                         Key::Down => {
                             move_joint_by_index(index_of_move_joint.get(), 0.1, &mut robot)
-                                .unwrap();
+                                .unwrap_or_else(|err| {
+                                    println!("Err: {}", err);
+                                });
                             viewer.update(&mut robot);
                         }
                         _ => {}
