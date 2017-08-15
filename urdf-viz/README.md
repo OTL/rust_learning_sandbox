@@ -61,3 +61,16 @@ In the GUI, you can
   * `Shift` + `Ctrl` + Drag to use inverse kinematics(Y and X axis)
   * change the move target for inverse kinematics by `,` and `.`
 * `r` key to set random joints
+
+Garally
+--------------------
+
+![ubr1_1.png](img/ubr1_1.png)
+![ubr1_2.png](img/ubr1_2.png)
+![pepper_1.png](img/pepper_1.png)
+![pepper_2.png](img/pepper_2.png)
+![nao_1.png](img/nao_1.png)
+![thormang3_1.png](img/thormang3_1.png)
+![thormang3_2.png](img/thormang3_2.png)
+![pr2_1.png](img/pr2_1.png)
+![pr2_2.png](img/pr2_2.png)

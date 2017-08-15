@@ -266,6 +266,7 @@ impl Viewer {
     pub fn setup(&mut self, mesh_convert: MeshConvert) {
         self.window.set_light(kiss3d::light::Light::StickToCamera);
 
+        self.window.set_background_color(0.0, 0.0, 0.3);
         let _ = self.urdf_robot
             .links
             .par_iter()
