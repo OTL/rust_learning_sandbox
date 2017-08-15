@@ -19,7 +19,7 @@ Install mesh converter commands
 $ sudo apt-get install meshlab assimp-utils
 ```
 
-How to use viewer
+Command line
 --------------
 
 `urdf_viewer` command will be installed by cargo.
@@ -47,3 +47,17 @@ For other commands, please read `-h` option.
 ```bash
 $ urdf_viewer -h
 ```
+
+GUI
+--------------
+In the GUI, you can
+
+* Move a joint
+  * set the angle of a joint by `Up`/`Down` key
+  * `Ctrl` + Drag to move the angle of a joint
+  * change the joint to be moved by `[` and `]`
+* Inverse kinematics (only positions)
+  * `Shift` + Drag to use inverse kinematics(Y and Z axis)
+  * `Shift` + `Ctrl` + Drag to use inverse kinematics(Y and X axis)
+  * change the move target for inverse kinematics by `,` and `.`
+* `r` key to set random joints
